@@ -4,32 +4,34 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getTransactions, deleteTransaction, Transaction } from '../services/storage';
+import { useLanguage } from '../services/languageContext';
 
 const COLORS = {
-  primary: '#6C63FF',
-  income: '#4CAF50',
-  expense: '#F44336',
-  bg: '#F0F2FF',
+  primary: '#2563EB',
+  income: '#16A34A',
+  expense: '#DC2626',
+  bg: '#F7F8FA',
   card: '#FFFFFF',
-  text: '#1A1A2E',
+  text: '#111827',
   sub: '#6B7280',
 };
 
 export default function HistoryScreen() {
+  const { tr } = useLanguage();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const load = async () => {
     const all = await getTransactions();
-    setTransactions(all.reverse());
+    setTransactions([...all].reverse());
   };
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
   const handleDelete = (id: string) => {
-    Alert.alert('Delete', 'Remove this transaction?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tr.delete_label, 'Remove this transaction?', [
+      { text: tr.cancel, style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: tr.delete_label, style: 'destructive', onPress: async () => {
           await deleteTransaction(id);
           load();
         },
@@ -55,7 +57,7 @@ export default function HistoryScreen() {
           {item.type === 'income' ? '+' : '-'}${item.amount.toFixed(2)}
         </Text>
         <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
-          <Text style={styles.deleteText}>Delete</Text>
+          <Text style={styles.deleteText}>{tr.delete_label}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -63,10 +65,10 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>All Transactions</Text>
+      <Text style={styles.title}>{tr.history}</Text>
       {transactions.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>No transactions yet.</Text>
+          <Text style={styles.emptyText}>{tr.no_transactions}</Text>
         </View>
       ) : (
         <FlatList

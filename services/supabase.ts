@@ -1,15 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-const SUPABASE_URL = 'https://kwgrylyueejcexikxsip.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3Z3J5bHl1ZWVqY2V4aWt4c2lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NzY1NzMsImV4cCI6MjA5MjI1MjU3M30.7c09dStd-UySf1N8-I0ig74geBYimjLg5Er656cbMWI';
+const SUPABASE_URL = 'https://ebnmlobonllzqtlftbfh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVibm1sb2JvbmxsenF0bGZ0YmZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MTAyMjIsImV4cCI6MjA5NDQ4NjIyMn0.eEccoc-bYDgSLeVQ1HFASHcl8sJkP0eCYhr4ZMbJ2Jk';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    storage: AsyncStorage,
+    // web uses localStorage by default; native needs AsyncStorage
+    ...(Platform.OS !== 'web' && { storage: AsyncStorage }),
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });
 

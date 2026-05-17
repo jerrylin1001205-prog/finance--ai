@@ -3,15 +3,11 @@ import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { saveTransaction } from '../services/storage';
+import { saveTransaction, getBudget, getThisMonthTransactions } from '../services/storage';
+import { useLanguage } from '../services/languageContext';
 
 const EXPENSE_CATEGORIES = ['Food', 'Transport', 'Bills', 'Shopping', 'Health', 'Entertainment', 'Rent', 'Other'];
 const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Business', 'Investment', 'Other'];
-const CATEGORY_EMOJI: Record<string, string> = {
-  Food: '🍜', Transport: '🚗', Bills: '💡', Shopping: '🛍️',
-  Health: '💊', Entertainment: '🎬', Rent: '🏠', Other: '📦',
-  Salary: '💼', Freelance: '💻', Business: '📊', Investment: '📈',
-};
 
 const COLORS = {
   primary: '#2563EB',
@@ -24,12 +20,27 @@ const COLORS = {
 };
 
 export default function AddTransactionScreen({ navigation }: any) {
+  const { tr } = useLanguage();
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [note, setNote] = useState('');
 
   const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+
+  const doSave = async () => {
+    await saveTransaction({
+      id: Date.now().toString(),
+      type,
+      amount: parseFloat(amount),
+      category,
+      note,
+      date: new Date().toISOString(),
+    });
+    Alert.alert('Saved!', 'Transaction added successfully', [
+      { text: 'OK', onPress: () => navigation.goBack() },
+    ]);
+  };
 
   const handleSave = async () => {
     if (!amount || isNaN(parseFloat(amount))) {
@@ -41,42 +52,52 @@ export default function AddTransactionScreen({ navigation }: any) {
       return;
     }
 
-    await saveTransaction({
-      id: Date.now().toString(),
-      type,
-      amount: parseFloat(amount),
-      category,
-      note,
-      date: new Date().toISOString(),
-    });
+    if (type === 'expense') {
+      const [budget, monthTxs] = await Promise.all([getBudget(), getThisMonthTransactions()]);
+      if (budget.totalMonthly > 0) {
+        const spent = monthTxs
+          .filter(tx => tx.type === 'expense')
+          .reduce((sum, tx) => sum + tx.amount, 0);
+        const pct = Math.round((spent / budget.totalMonthly) * 100);
+        if (pct >= 80) {
+          Alert.alert(
+            'Budget Warning',
+            `⚠️ You've used ${pct}% of your monthly budget this month. Are you sure you want to add this expense?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Confirm', onPress: doSave },
+            ]
+          );
+          return;
+        }
+      }
+    }
 
-    Alert.alert('Saved!', 'Transaction added successfully', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+    await doSave();
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'android' ? 'height' : 'padding'}>
       <ScrollView style={styles.container}>
-        <Text style={styles.title}>Add Transaction 💰</Text>
+        <Text style={styles.title}>{tr.add_transaction}</Text>
 
         <View style={styles.typeToggle}>
           <TouchableOpacity
             style={[styles.typeBtn, type === 'expense' && { backgroundColor: COLORS.expense }]}
             onPress={() => { setType('expense'); setCategory(''); }}
           >
-            <Text style={[styles.typeBtnText, type === 'expense' && { color: '#fff' }]}>Expense</Text>
+            <Text style={[styles.typeBtnText, type === 'expense' && { color: '#fff' }]}>{tr.expense_label}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.typeBtn, type === 'income' && { backgroundColor: COLORS.income }]}
             onPress={() => { setType('income'); setCategory(''); }}
           >
-            <Text style={[styles.typeBtnText, type === 'income' && { color: '#fff' }]}>Income</Text>
+            <Text style={[styles.typeBtnText, type === 'income' && { color: '#fff' }]}>{tr.income_label}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Amount ($)</Text>
+          <Text style={styles.label}>{tr.amount} ($)</Text>
           <TextInput
             style={styles.amountInput}
             placeholder="0.00"
@@ -88,7 +109,7 @@ export default function AddTransactionScreen({ navigation }: any) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Category</Text>
+          <Text style={styles.label}>{tr.category}</Text>
           <View style={styles.catGrid}>
             {categories.map(cat => (
               <TouchableOpacity
@@ -96,7 +117,6 @@ export default function AddTransactionScreen({ navigation }: any) {
                 style={[styles.catChip, category === cat && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
                 onPress={() => setCategory(cat)}
               >
-                <Text style={styles.catEmoji}>{CATEGORY_EMOJI[cat] || '📦'}</Text>
                 <Text style={[styles.catChipText, category === cat && { color: '#fff' }]}>{cat}</Text>
               </TouchableOpacity>
             ))}
@@ -104,7 +124,7 @@ export default function AddTransactionScreen({ navigation }: any) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Note (optional)</Text>
+          <Text style={styles.label}>{tr.note_optional}</Text>
           <TextInput
             style={styles.noteInput}
             placeholder="Add a note..."
@@ -116,7 +136,7 @@ export default function AddTransactionScreen({ navigation }: any) {
         </View>
 
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>Save Transaction</Text>
+          <Text style={styles.saveBtnText}>{tr.save_transaction}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -124,8 +144,8 @@ export default function AddTransactionScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F8FA', padding: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: '#111827', marginVertical: 16 },
+  container: { flex: 1, backgroundColor: COLORS.bg, padding: 16 },
+  title: { fontSize: 24, fontWeight: '700', color: COLORS.text, marginVertical: 16 },
   typeToggle: {
     flexDirection: 'row', backgroundColor: '#E5E7EB', borderRadius: 12,
     padding: 4, marginBottom: 16,
@@ -140,11 +160,9 @@ const styles = StyleSheet.create({
   amountInput: { fontSize: 38, fontWeight: '800', color: COLORS.text, borderBottomWidth: 2, borderBottomColor: COLORS.primary, paddingBottom: 8 },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20,
     backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB',
   },
-  catEmoji: { fontSize: 15 },
   catChipText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
   noteInput: { fontSize: 15, color: COLORS.text, minHeight: 60 },
   saveBtn: {
