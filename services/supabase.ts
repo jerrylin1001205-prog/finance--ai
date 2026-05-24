@@ -7,7 +7,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    // web uses localStorage by default; native needs AsyncStorage
     ...(Platform.OS !== 'web' && { storage: AsyncStorage }),
     autoRefreshToken: true,
     persistSession: true,
@@ -36,53 +35,84 @@ export const getUser = async () => {
   return data.user;
 };
 
-export const backupTransactions = async (transactions: any[]) => {
+// ── Monthly Income ─────────────────────────────────────────────────────────────
+
+export const saveMonthlyIncome = async (amount: number): Promise<void> => {
   const user = await getUser();
   if (!user) throw new Error('Not logged in');
-
-  await supabase.from('transactions').delete().eq('user_id', user.id);
-
-  if (transactions.length === 0) return;
-
-  const rows = transactions.map(t => ({ ...t, user_id: user.id }));
-  const { error } = await supabase.from('transactions').insert(rows);
+  const now = new Date();
+  const { error } = await supabase
+    .from('monthly_income')
+    .upsert(
+      { user_id: user.id, year: now.getFullYear(), month: now.getMonth() + 1, amount },
+      { onConflict: 'user_id,year,month' }
+    );
   if (error) throw new Error(error.message);
 };
 
-export const restoreTransactions = async () => {
+export const getMonthlyIncome = async (): Promise<number> => {
   const user = await getUser();
-  if (!user) throw new Error('Not logged in');
-
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('*')
+  if (!user) return 0;
+  const now = new Date();
+  const { data } = await supabase
+    .from('monthly_income')
+    .select('amount')
     .eq('user_id', user.id)
-    .order('date', { ascending: true });
-
-  if (error) throw new Error(error.message);
-  return data.map(({ user_id, ...rest }: any) => rest);
-};
-
-export const backupBudget = async (budget: any) => {
-  const user = await getUser();
-  if (!user) throw new Error('Not logged in');
-
-  await supabase.from('budgets').delete().eq('user_id', user.id);
-  const { error } = await supabase.from('budgets').insert({ ...budget, user_id: user.id });
-  if (error) throw new Error(error.message);
-};
-
-export const restoreBudget = async () => {
-  const user = await getUser();
-  if (!user) throw new Error('Not logged in');
-
-  const { data, error } = await supabase
-    .from('budgets')
-    .select('*')
-    .eq('user_id', user.id)
+    .eq('year', now.getFullYear())
+    .eq('month', now.getMonth() + 1)
     .single();
+  return data?.amount ?? 0;
+};
 
-  if (error) return null;
-  const { user_id, ...rest } = data;
-  return rest;
+// ── Expenses ───────────────────────────────────────────────────────────────────
+
+export interface Expense {
+  id: string;
+  item_name: string;
+  category: string;
+  amount: number;
+  date: string;
+}
+
+export const addExpense = async (item_name: string, category: string, amount: number): Promise<void> => {
+  const user = await getUser();
+  if (!user) throw new Error('Not logged in');
+  const { error } = await supabase
+    .from('expenses')
+    .insert({ user_id: user.id, item_name, category, amount, date: new Date().toISOString() });
+  if (error) throw new Error(error.message);
+};
+
+export const getMonthExpenses = async (): Promise<Expense[]> => {
+  const user = await getUser();
+  if (!user) return [];
+  const now = new Date();
+  // Wide UTC range (+/- 1 day) to handle any timezone offset, then filter locally
+  const start = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 2).toISOString();
+  const { data, error } = await supabase
+    .from('expenses')
+    .select('id, item_name, category, amount, date')
+    .eq('user_id', user.id)
+    .gte('date', start)
+    .lte('date', end)
+    .order('date', { ascending: false });
+  if (error) return [];
+  return ((data ?? []) as Expense[]).filter(e => {
+    const d = new Date(e.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+};
+
+export const removeExpense = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('expenses').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+};
+
+export const updateExpense = async (id: string, item_name: string, category: string, amount: number): Promise<void> => {
+  const { error } = await supabase
+    .from('expenses')
+    .update({ item_name, category, amount })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
 };

@@ -17,7 +17,6 @@ export interface Budget {
 
 const TRANSACTIONS_KEY = 'transactions';
 const BUDGET_KEY = 'budget';
-const API_KEY_KEY = 'claude_api_key';
 
 export const saveTransaction = async (tx: Transaction) => {
   const existing = await getTransactions();
@@ -56,10 +55,3 @@ export const getBudget = async (): Promise<Budget> => {
     : { totalMonthly: 0, savingsGoal: 0, categories: {} };
 };
 
-export const saveApiKey = async (key: string) => {
-  await AsyncStorage.setItem(API_KEY_KEY, key);
-};
-
-export const getApiKey = async (): Promise<string> => {
-  return (await AsyncStorage.getItem(API_KEY_KEY)) || '';
-};

@@ -1,142 +1,151 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, Alert, KeyboardAvoidingView, Platform,
+  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
-import { saveTransaction, getBudget, getThisMonthTransactions } from '../services/storage';
-import { useLanguage } from '../services/languageContext';
+import { useFocusEffect } from '@react-navigation/native';
+import { addExpense, getMonthlyIncome, getMonthExpenses } from '../services/supabase';
 
-const EXPENSE_CATEGORIES = ['Food', 'Transport', 'Bills', 'Shopping', 'Health', 'Entertainment', 'Rent', 'Other'];
-const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Business', 'Investment', 'Other'];
-
-const COLORS = {
-  primary: '#2563EB',
-  income: '#16A34A',
-  expense: '#DC2626',
+const PRIMARY = '#2563EB';
+const C = {
   bg: '#F7F8FA',
   card: '#FFFFFF',
   text: '#111827',
   sub: '#6B7280',
+  expense: '#DC2626',
+  warn: '#D97706',
 };
 
+const CATEGORIES = ['Food', 'Transport', 'Bills', 'Shopping', 'Health', 'Entertainment', 'Rent', 'Other'];
+
+const CATEGORY_ICONS: Record<string, string> = {
+  Food: '🍔', Transport: '🚗', Bills: '💡', Shopping: '🛍️',
+  Health: '💊', Entertainment: '🎬', Rent: '🏠', Other: '📦',
+};
+
+function fmt(n: number) {
+  return 'NT$' + Math.round(n).toLocaleString('en-US');
+}
+
 export default function AddTransactionScreen({ navigation }: any) {
-  const { tr } = useLanguage();
-  const [type, setType] = useState<'income' | 'expense'>('expense');
-  const [amount, setAmount] = useState('');
+  const [itemName, setItemName] = useState('');
   const [category, setCategory] = useState('');
-  const [note, setNote] = useState('');
+  const [amount, setAmount] = useState('');
+  const [income, setIncome] = useState(0);
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
 
-  const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  useFocusEffect(useCallback(() => {
+    (async () => {
+      const [inc, exps] = await Promise.all([getMonthlyIncome(), getMonthExpenses()]);
+      setIncome(inc);
+      setTotalSpent(exps.reduce((s, e) => s + e.amount, 0));
+    })();
+  }, []));
 
-  const doSave = async () => {
-    await saveTransaction({
-      id: Date.now().toString(),
-      type,
-      amount: parseFloat(amount),
-      category,
-      note,
-      date: new Date().toISOString(),
-    });
-    Alert.alert('Saved!', 'Transaction added successfully', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
-  };
+  const parsedAmount = parseFloat(amount) || 0;
+  const remainingAfter = income - totalSpent - parsedAmount;
+  const showWarning = income > 0 && parsedAmount > 0 && remainingAfter < income * 0.2;
 
   const handleSave = async () => {
-    if (!amount || isNaN(parseFloat(amount))) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return;
-    }
-    if (!category) {
-      Alert.alert('Error', 'Please select a category');
-      return;
-    }
+    setError('');
+    if (!itemName.trim()) { setError('Please enter an item name.'); return; }
+    if (!category) { setError('Please select a category.'); return; }
+    if (!parsedAmount || parsedAmount <= 0) { setError('Please enter a valid amount.'); return; }
 
-    if (type === 'expense') {
-      const [budget, monthTxs] = await Promise.all([getBudget(), getThisMonthTransactions()]);
-      if (budget.totalMonthly > 0) {
-        const spent = monthTxs
-          .filter(tx => tx.type === 'expense')
-          .reduce((sum, tx) => sum + tx.amount, 0);
-        const pct = Math.round((spent / budget.totalMonthly) * 100);
-        if (pct >= 80) {
-          Alert.alert(
-            'Budget Warning',
-            `⚠️ You've used ${pct}% of your monthly budget this month. Are you sure you want to add this expense?`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Confirm', onPress: doSave },
-            ]
-          );
-          return;
-        }
-      }
+    setSaving(true);
+    try {
+      await addExpense(itemName.trim(), category, parsedAmount);
+      setSaved(true);
+      setItemName('');
+      setCategory('');
+      setAmount('');
+      setTotalSpent(prev => prev + parsedAmount);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
     }
-
-    await doSave();
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'android' ? 'height' : 'padding'}>
-      <ScrollView style={styles.container}>
-        <Text style={styles.title}>{tr.add_transaction}</Text>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+        <Text style={styles.title}>Add Expense</Text>
 
-        <View style={styles.typeToggle}>
-          <TouchableOpacity
-            style={[styles.typeBtn, type === 'expense' && { backgroundColor: COLORS.expense }]}
-            onPress={() => { setType('expense'); setCategory(''); }}
-          >
-            <Text style={[styles.typeBtnText, type === 'expense' && { color: '#fff' }]}>{tr.expense_label}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeBtn, type === 'income' && { backgroundColor: COLORS.income }]}
-            onPress={() => { setType('income'); setCategory(''); }}
-          >
-            <Text style={[styles.typeBtnText, type === 'income' && { color: '#fff' }]}>{tr.income_label}</Text>
-          </TouchableOpacity>
+        {/* Item name */}
+        <View style={styles.card}>
+          <Text style={styles.label}>ITEM NAME</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="e.g. Lunch at restaurant"
+            value={itemName}
+            onChangeText={setItemName}
+            placeholderTextColor={C.sub}
+          />
         </View>
 
+        {/* Category */}
         <View style={styles.card}>
-          <Text style={styles.label}>{tr.amount} ($)</Text>
+          <Text style={styles.label}>CATEGORY</Text>
+          <View style={styles.catGrid}>
+            {CATEGORIES.map(cat => (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.catChip, category === cat && styles.catChipActive]}
+                onPress={() => setCategory(cat)}
+              >
+                <Text style={styles.catIcon}>{CATEGORY_ICONS[cat]}</Text>
+                <Text style={[styles.catText, category === cat && styles.catTextActive]}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Amount */}
+        <View style={styles.card}>
+          <Text style={styles.label}>AMOUNT (NT$)</Text>
           <TextInput
             style={styles.amountInput}
             placeholder="0.00"
             keyboardType="decimal-pad"
             value={amount}
             onChangeText={setAmount}
-            placeholderTextColor={COLORS.sub}
+            placeholderTextColor={C.sub}
           />
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>{tr.category}</Text>
-          <View style={styles.catGrid}>
-            {categories.map(cat => (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.catChip, category === cat && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text style={[styles.catChipText, category === cat && { color: '#fff' }]}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
+        {/* 20% warning */}
+        {showWarning && (
+          <View style={styles.warnCard}>
+            <Text style={styles.warnText}>
+              ⚠️ You only have {fmt(Math.max(0, remainingAfter))} left this month!
+            </Text>
           </View>
-        </View>
+        )}
 
-        <View style={styles.card}>
-          <Text style={styles.label}>{tr.note_optional}</Text>
-          <TextInput
-            style={styles.noteInput}
-            placeholder="Add a note..."
-            value={note}
-            onChangeText={setNote}
-            placeholderTextColor={COLORS.sub}
-            multiline
-          />
-        </View>
+        {/* Error */}
+        {error !== '' && (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>{tr.save_transaction}</Text>
+        {/* Success */}
+        {saved && (
+          <View style={styles.successCard}>
+            <Text style={styles.successText}>Expense saved!</Text>
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+          {saving
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.saveBtnText}>Save Expense</Text>
+          }
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -144,31 +153,53 @@ export default function AddTransactionScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, padding: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: COLORS.text, marginVertical: 16 },
-  typeToggle: {
-    flexDirection: 'row', backgroundColor: '#E5E7EB', borderRadius: 12,
-    padding: 4, marginBottom: 16,
-  },
-  typeBtn: { flex: 1, paddingVertical: 11, borderRadius: 9, alignItems: 'center' },
-  typeBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.sub },
+  container: { flex: 1, backgroundColor: C.bg, padding: 16 },
+  title: { fontSize: 24, fontWeight: '700', color: C.text, marginTop: 16, marginBottom: 16 },
   card: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 18, marginBottom: 14,
+    backgroundColor: C.card, borderRadius: 16, padding: 18, marginBottom: 14,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
-  label: { fontSize: 12, fontWeight: '600', color: COLORS.sub, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.6 },
-  amountInput: { fontSize: 38, fontWeight: '800', color: COLORS.text, borderBottomWidth: 2, borderBottomColor: COLORS.primary, paddingBottom: 8 },
+  label: {
+    fontSize: 11, fontWeight: '700', color: C.sub,
+    marginBottom: 12, letterSpacing: 0.8,
+  },
+  textInput: {
+    fontSize: 16, color: C.text, borderBottomWidth: 2,
+    borderBottomColor: PRIMARY, paddingBottom: 8,
+  },
+  amountInput: {
+    fontSize: 38, fontWeight: '800', color: C.text,
+    borderBottomWidth: 2, borderBottomColor: PRIMARY, paddingBottom: 8,
+  },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catChip: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
     backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB',
   },
-  catChipText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
-  noteInput: { fontSize: 15, color: COLORS.text, minHeight: 60 },
+  catChipActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
+  catIcon: { fontSize: 14 },
+  catText: { fontSize: 13, fontWeight: '600', color: C.text },
+  catTextActive: { color: '#fff' },
+  warnCard: {
+    borderRadius: 14, backgroundColor: '#FFFBEB', padding: 16,
+    marginBottom: 14, borderWidth: 1, borderColor: '#FDE68A',
+  },
+  warnText: { fontSize: 14, fontWeight: '700', color: C.warn, lineHeight: 22 },
+  errorCard: {
+    borderRadius: 14, backgroundColor: '#FEF2F2', padding: 14,
+    marginBottom: 14, borderWidth: 1, borderColor: '#FECACA',
+  },
+  errorText: { fontSize: 14, color: C.expense, fontWeight: '600' },
+  successCard: {
+    borderRadius: 14, backgroundColor: '#F0FDF4', padding: 14,
+    marginBottom: 14, borderWidth: 1, borderColor: '#BBF7D0',
+  },
+  successText: { fontSize: 14, color: '#16A34A', fontWeight: '600' },
   saveBtn: {
-    backgroundColor: COLORS.primary, borderRadius: 14, padding: 17,
-    alignItems: 'center', marginBottom: 40, shadowColor: COLORS.primary,
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+    backgroundColor: PRIMARY, borderRadius: 14, padding: 17,
+    alignItems: 'center', marginBottom: 40,
+    shadowColor: PRIMARY, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

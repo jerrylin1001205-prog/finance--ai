@@ -26,7 +26,6 @@ export default function LoginScreen({ onGoToRegister }: Props) {
     setLoading(true);
     try {
       await signIn(email.trim(), password);
-      // auth state change in App.tsx handles navigation
     } catch (e: any) {
       Alert.alert('Sign In Failed', e.message);
     } finally {

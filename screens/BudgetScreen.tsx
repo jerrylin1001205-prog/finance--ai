@@ -1,122 +1,114 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, Alert, KeyboardAvoidingView, Platform, Linking,
+  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getBudget, saveBudget, getApiKey, saveApiKey } from '../services/storage';
-import { useLanguage } from '../services/languageContext';
-import { LANGUAGES } from '../services/i18n';
+import { getMonthlyIncome, saveMonthlyIncome, signOut } from '../services/supabase';
 
-const COLORS = {
-  primary: '#2563EB',
+const PRIMARY = '#2563EB';
+const C = {
   bg: '#F7F8FA',
   card: '#FFFFFF',
   text: '#111827',
   sub: '#6B7280',
+  income: '#16A34A',
 };
 
+function monthLabel() {
+  return new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+}
+
+function fmt(n: number) {
+  return 'NT$' + Math.round(n).toLocaleString('en-US');
+}
+
 export default function BudgetScreen() {
-  const { tr, lang, setLang } = useLanguage();
-  const [monthly, setMonthly] = useState('');
-  const [savingsGoal, setSavingsGoal] = useState('');
-  const [apiKey, setApiKey] = useState('');
+  const [current, setCurrent] = useState(0);
+  const [amount, setAmount] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
 
   useFocusEffect(useCallback(() => {
-    getBudget().then(b => {
-      setMonthly(b.totalMonthly > 0 ? b.totalMonthly.toString() : '');
-      setSavingsGoal(b.savingsGoal > 0 ? b.savingsGoal.toString() : '');
+    getMonthlyIncome().then(inc => {
+      setCurrent(inc);
+      if (inc > 0) setAmount(inc.toString());
     });
-    getApiKey().then(k => setApiKey(k));
   }, []));
 
   const handleSave = async () => {
-    await saveBudget({
-      totalMonthly: parseFloat(monthly) || 0,
-      savingsGoal: parseFloat(savingsGoal) || 0,
-      categories: {},
-    });
-    if (apiKey.trim()) await saveApiKey(apiKey.trim());
-    Alert.alert('Saved!', 'Your settings have been saved.');
+    setError('');
+    const val = parseFloat(amount);
+    if (!val || val <= 0) { setError('Please enter a valid income amount.'); return; }
+    setSaving(true);
+    try {
+      await saveMonthlyIncome(val);
+      setCurrent(val);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to save.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'android' ? 'height' : 'padding'}>
-      <ScrollView style={styles.container}>
-        <Text style={styles.title}>{tr.settings_title}</Text>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+        <Text style={styles.title}>Monthly Income</Text>
+        <Text style={styles.subtitle}>{monthLabel()}</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>{tr.monthly_budget_section}</Text>
-          <Text style={styles.desc}>{tr.budget_desc}</Text>
-          <Text style={styles.label}>{tr.budget_limit} ($)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 2000"
-            keyboardType="decimal-pad"
-            value={monthly}
-            onChangeText={setMonthly}
-            placeholderTextColor={COLORS.sub}
-          />
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>{tr.savings_section}</Text>
-          <Text style={styles.desc}>{tr.savings_desc}</Text>
-          <Text style={styles.label}>{tr.savings_goal_label} ($)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 500"
-            keyboardType="decimal-pad"
-            value={savingsGoal}
-            onChangeText={setSavingsGoal}
-            placeholderTextColor={COLORS.sub}
-          />
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>{tr.api_section}</Text>
-          <Text style={styles.desc}>Required for AI advice. Don't know how? Watch the tutorial below.</Text>
-          <View style={styles.warningBox}>
-            <Text style={styles.warningText}>{tr.age_warning}</Text>
+        {current > 0 && (
+          <View style={styles.currentCard}>
+            <Text style={styles.currentLabel}>Current income set</Text>
+            <Text style={styles.currentAmount}>{fmt(current)}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.videoBtn}
-            onPress={() => Linking.openURL('https://www.youtube.com/watch?v=eVX-La42ff0')}
-          >
-            <Text style={styles.videoBtnText}>{tr.watch_tutorial}</Text>
-          </TouchableOpacity>
-          <Text style={styles.label}>{tr.api_key_label}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="AIza..."
-            value={apiKey}
-            onChangeText={setApiKey}
-            placeholderTextColor={COLORS.sub}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        </View>
+        )}
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>{tr.select_language}</Text>
-          <View style={styles.langGrid}>
-            {LANGUAGES.map(l => (
-              <TouchableOpacity
-                key={l.code}
-                style={[styles.langChip, lang === l.code && styles.langChipActive]}
-                onPress={() => setLang(l.code)}
-              >
-                <Text style={[styles.langChipText, lang === l.code && styles.langChipTextActive]}>
-                  {l.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Text style={styles.label}>SET YOUR MONTHLY INCOME (NT$)</Text>
+          <TextInput
+            style={styles.amountInput}
+            placeholder="0.00"
+            keyboardType="decimal-pad"
+            value={amount}
+            onChangeText={setAmount}
+            placeholderTextColor={C.sub}
+          />
+          <Text style={styles.hint}>
+            Enter your total income for this month. You can update it anytime.
+          </Text>
         </View>
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>{tr.save_settings}</Text>
+        {error !== '' && (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        {saved && (
+          <View style={styles.successCard}>
+            <Text style={styles.successText}>Income saved for {monthLabel()}!</Text>
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+          {saving
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.saveBtnText}>Save Income</Text>
+          }
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.signOutBtn}
+          onPress={async () => {
+            await signOut();
+            if (Platform.OS === 'web') window.location.reload();
+          }}
+        >
+          <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -124,41 +116,44 @@ export default function BudgetScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, padding: 16 },
-  title: { fontSize: 26, fontWeight: '800', color: COLORS.text, marginVertical: 16 },
+  container: { flex: 1, backgroundColor: C.bg, padding: 16 },
+  title: { fontSize: 24, fontWeight: '700', color: C.text, marginTop: 16, marginBottom: 4 },
+  subtitle: { fontSize: 14, color: C.sub, marginBottom: 20 },
+  currentCard: {
+    borderRadius: 16, backgroundColor: '#F0FDF4', padding: 20,
+    marginBottom: 16, borderWidth: 1, borderColor: '#BBF7D0',
+  },
+  currentLabel: { fontSize: 12, color: C.income, fontWeight: '600', marginBottom: 4 },
+  currentAmount: { fontSize: 32, fontWeight: '800', color: C.income },
   card: {
-    backgroundColor: COLORS.card, borderRadius: 16, padding: 20, marginBottom: 16,
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+    backgroundColor: C.card, borderRadius: 16, padding: 18, marginBottom: 14,
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
-  desc: { fontSize: 13, color: COLORS.sub, marginBottom: 16, lineHeight: 18 },
-  label: { fontSize: 12, fontWeight: '600', color: COLORS.sub, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: {
-    borderWidth: 1.5, borderColor: '#E0E0EE', borderRadius: 10,
-    padding: 12, fontSize: 16, color: COLORS.text, backgroundColor: COLORS.bg,
+  label: { fontSize: 11, fontWeight: '700', color: C.sub, marginBottom: 12, letterSpacing: 0.8 },
+  amountInput: {
+    fontSize: 38, fontWeight: '800', color: C.text,
+    borderBottomWidth: 2, borderBottomColor: PRIMARY, paddingBottom: 8, marginBottom: 12,
   },
+  hint: { fontSize: 13, color: C.sub, lineHeight: 20 },
+  errorCard: {
+    borderRadius: 14, backgroundColor: '#FEF2F2', padding: 14,
+    marginBottom: 14, borderWidth: 1, borderColor: '#FECACA',
+  },
+  errorText: { fontSize: 14, color: '#DC2626', fontWeight: '600' },
+  successCard: {
+    borderRadius: 14, backgroundColor: '#F0FDF4', padding: 14,
+    marginBottom: 14, borderWidth: 1, borderColor: '#BBF7D0',
+  },
+  successText: { fontSize: 14, color: C.income, fontWeight: '600' },
   saveBtn: {
-    backgroundColor: COLORS.primary, borderRadius: 16, padding: 18,
-    alignItems: 'center', marginBottom: 40, shadowColor: COLORS.primary,
-    shadowOpacity: 0.4, shadowRadius: 10, elevation: 5,
+    backgroundColor: PRIMARY, borderRadius: 14, padding: 17,
+    alignItems: 'center', marginBottom: 14,
+    shadowColor: PRIMARY, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
-  saveBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  warningBox: {
-    backgroundColor: '#FFF3E0', borderRadius: 10, padding: 12,
-    marginBottom: 12, borderLeftWidth: 4, borderLeftColor: '#FF9800',
+  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  signOutBtn: {
+    borderRadius: 14, padding: 17, alignItems: 'center',
+    borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 40,
   },
-  warningText: { fontSize: 13, color: '#E65100', fontWeight: '600' },
-  videoBtn: {
-    backgroundColor: '#EFF6FF', borderRadius: 10, padding: 14,
-    alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: COLORS.primary,
-  },
-  videoBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
-  langGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-  langChip: {
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB',
-  },
-  langChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  langChipText: { fontSize: 12, fontWeight: '600', color: COLORS.sub },
-  langChipTextActive: { color: '#fff' },
+  signOutText: { fontSize: 15, fontWeight: '600', color: C.sub },
 });
