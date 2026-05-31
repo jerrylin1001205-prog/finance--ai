@@ -406,6 +406,33 @@ export default function LandingScreen({ onGetStarted, onSignIn }: Props) {
           </View>
         </View>
 
+        {/* ── TRUST SECTION ── */}
+        <View style={[styles.section, { paddingHorizontal: px }]}>
+          <View style={styles.sectionTag}><Text style={styles.sectionTagText}>TRUST & SECURITY</Text></View>
+          <Text style={[styles.sectionTitle, { fontSize: isWide ? 40 : 28 }]}>
+            Your data is safe{'\n'}with us.
+          </Text>
+          <Text style={styles.sectionBody}>
+            We take your privacy seriously. Finance AI is built on Supabase — an enterprise-grade, open-source backend with bank-level encryption. Your data is never sold, never shared, and never used for ads.
+          </Text>
+          <View style={[styles.trustGrid, isWide && { flexDirection: 'row' }]}>
+            {[
+              { icon: 'lock-closed' as const, color: '#6366F1', title: '256-bit Encryption', desc: 'All your data is encrypted at rest and in transit using AES-256, the same standard used by banks.' },
+              { icon: 'eye-off' as const, color: '#10B981', title: 'No Ads, Ever', desc: 'We never show ads, never sell your data to third parties, and never track you across other websites.' },
+              { icon: 'server' as const, color: '#F59E0B', title: 'Powered by Supabase', desc: 'Your data is stored securely on Supabase — trusted by thousands of companies worldwide.' },
+              { icon: 'person' as const, color: '#EC4899', title: 'You Own Your Data', desc: 'Your financial data belongs to you. You can delete your account and all data at any time.' },
+            ].map((t) => (
+              <View key={t.title} style={[styles.trustCard, isWide && { flex: 1 }]}>
+                <View style={[styles.trustIcon, { backgroundColor: t.color + '15' }]}>
+                  <Ionicons name={t.icon} size={20} color={t.color} />
+                </View>
+                <Text style={styles.trustTitle}>{t.title}</Text>
+                <Text style={styles.trustDesc}>{t.desc}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         {/* ── FINAL CTA ── */}
         <LinearGradient colors={['#1E1B4B', '#0F0D2E', '#1E1B4B']} style={[styles.ctaSection, { paddingHorizontal: px }]}>
           <View style={styles.ctaGlow} />
@@ -616,6 +643,13 @@ const styles = StyleSheet.create({
   ctaSignIn: { fontSize: 14, color: 'rgba(255,255,255,0.35)', fontWeight: '500' },
   footer: { marginTop: 60, paddingTop: 24, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', alignSelf: 'stretch', alignItems: 'center' },
   footerText: { fontSize: 12, color: '#334155' },
+
+  // Trust
+  trustGrid: { gap: 14 },
+  trustCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 18, padding: 22, marginBottom: 0 },
+  trustIcon: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  trustTitle: { fontSize: 15, fontWeight: '800', color: '#F1F5F9', marginBottom: 8 },
+  trustDesc: { fontSize: 13, color: '#64748B', lineHeight: 21 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
