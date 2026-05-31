@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, ActivityIndicator, ScrollView,
+  Modal, TextInput, ActivityIndicator, ScrollView, Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +27,7 @@ function formatDate(iso: string) {
 
 export default function HistoryScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [exportSuccess, setExportSuccess] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [editTarget, setEditTarget] = useState<Expense | null>(null);
@@ -38,6 +39,22 @@ export default function HistoryScreen() {
 
   const load = async () => { setExpenses(await getMonthExpenses()); };
   useFocusEffect(useCallback(() => { load(); }, []));
+
+  const handleExportCSV = () => {
+    if (expenses.length === 0) return;
+    const csv = 'Date,Item,Category,Amount\n' + expenses.map(e =>
+      `${new Date(e.date).toLocaleDateString()},${e.item_name},${e.category},${e.amount}`
+    ).join('\n');
+    if (Platform.OS === 'web') {
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'finance-ai-expenses.csv'; a.click();
+      URL.revokeObjectURL(url);
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 3000);
+    }
+  };
 
   const openEdit = (item: Expense) => {
     setEditTarget(item); setEditName(item.item_name);
@@ -100,13 +117,31 @@ export default function HistoryScreen() {
     <View style={styles.root}>
       {/* Header */}
       <LinearGradient colors={['#1E1B4B', '#312E81']} style={styles.header}>
-        <Text style={styles.headerTitle}>History</Text>
-        <Text style={styles.headerSub}>
-          {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
-        </Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.headerTitle}>History</Text>
+            <Text style={styles.headerSub}>
+              {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+            </Text>
+          </View>
+          {expenses.length > 0 && (
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExportCSV}>
+              <Ionicons name="download-outline" size={16} color="#fff" />
+              <Text style={styles.exportBtnText}>CSV</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </LinearGradient>
 
       <View style={styles.body}>
+        {/* Export success banner */}
+        {exportSuccess && (
+          <View style={styles.exportSuccessBanner}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.exportSuccessText}>CSV exported successfully!</Text>
+          </View>
+        )}
+
         {/* Summary */}
         {expenses.length > 0 && (
           <View style={styles.summaryCard}>
@@ -240,8 +275,23 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F0F4F8' },
   header: { paddingHorizontal: 24, paddingTop: 56, paddingBottom: 32 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   headerTitle: { fontSize: 26, fontWeight: '900', color: '#fff', marginBottom: 4 },
   headerSub: { fontSize: 14, color: 'rgba(255,255,255,0.55)' },
+  exportBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+    marginTop: 4,
+  },
+  exportBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  exportSuccessBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#D1FAE5', borderRadius: 12, padding: 12,
+    marginBottom: 10,
+  },
+  exportSuccessText: { fontSize: 13, fontWeight: '700', color: '#059669' },
   body: { flex: 1, paddingHorizontal: 16, paddingTop: 8, marginTop: -16 },
 
   summaryCard: {

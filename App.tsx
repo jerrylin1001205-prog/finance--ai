@@ -17,6 +17,7 @@ import DashboardScreen from './screens/DashboardScreen';
 import AddTransactionScreen from './screens/AddTransactionScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import BudgetScreen from './screens/BudgetScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import LandingScreen from './screens/LandingScreen';
@@ -53,6 +54,7 @@ function MobileTabs() {
             Add: focused ? 'add-circle' : 'add-circle-outline',
             History: focused ? 'list' : 'list-outline',
             Income: focused ? 'wallet' : 'wallet-outline',
+            Settings: focused ? 'settings' : 'settings-outline',
           };
           return <Ionicons name={icons[route.name] || 'ellipse'} size={size} color={color} />;
         },
@@ -62,6 +64,7 @@ function MobileTabs() {
       <Tab.Screen name="Add" component={AddTransactionScreen} options={{ tabBarLabel: 'Add Expense' }} />
       <Tab.Screen name="History" component={HistoryScreen} options={{ tabBarLabel: 'History' }} />
       <Tab.Screen name="Income" component={BudgetScreen} options={{ tabBarLabel: 'Income' }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: 'Settings' }} />
     </Tab.Navigator>
   );
 }
@@ -73,6 +76,7 @@ const NAV_ITEMS = [
   { screen: 'Add', label: 'Add Expense', icon: 'add-circle-outline' as const },
   { screen: 'History', label: 'History', icon: 'list-outline' as const },
   { screen: 'Income', label: 'Monthly Income', icon: 'wallet-outline' as const },
+  { screen: 'Settings', label: 'Settings', icon: 'settings-outline' as const },
 ];
 
 const DesktopStack = createNativeStackNavigator();
@@ -140,6 +144,7 @@ function DesktopLayout() {
               <DesktopStack.Screen name="Add" component={AddTransactionScreen} />
               <DesktopStack.Screen name="History" component={HistoryScreen} />
               <DesktopStack.Screen name="Income" component={BudgetScreen} />
+              <DesktopStack.Screen name="Settings" component={SettingsScreen} />
             </DesktopStack.Navigator>
           </NavigationContainer>
         </View>

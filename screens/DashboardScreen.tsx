@@ -6,7 +6,10 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getMonthlyIncome, getMonthExpenses, Expense } from '../services/supabase';
+import {
+  getMonthlyIncome, getMonthExpenses, Expense,
+  getCategoryLimits, CategoryLimit,
+} from '../services/supabase';
 import { fmt } from '../utils/currency';
 
 const PRIMARY = '#6366F1';
@@ -36,12 +39,16 @@ export default function DashboardScreen() {
   const { width } = useWindowDimensions();
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [limits, setLimits] = useState<CategoryLimit[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
-    const [inc, exps] = await Promise.all([getMonthlyIncome(), getMonthExpenses()]);
+    const [inc, exps, lims] = await Promise.all([
+      getMonthlyIncome(), getMonthExpenses(), getCategoryLimits(),
+    ]);
     setIncome(inc);
     setExpenses(exps);
+    setLimits(lims);
   };
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
@@ -57,6 +64,22 @@ export default function DashboardScreen() {
 
   const statusColor = pct >= 1 ? '#EF4444' : pct >= 0.8 ? '#F59E0B' : '#10B981';
   const statusLabel = pct >= 1 ? 'Over budget' : pct >= 0.8 ? 'Near limit' : 'On track';
+
+  // Spending alert logic
+  const showOverBudget = income > 0 && totalSpent >= income;
+  const showNearBudget = income > 0 && !showOverBudget && totalSpent >= income * 0.8;
+
+  // Category warnings (>90% of limit)
+  const catWarnings = limits.filter(l => {
+    const spent = byCategory[l.category] ?? 0;
+    return spent >= l.limit_amount * 0.9;
+  }).map(l => ({
+    category: l.category,
+    spent: byCategory[l.category] ?? 0,
+    limit: l.limit_amount,
+  }));
+
+  const getLimitForCat = (cat: string) => limits.find(l => l.category === cat)?.limit_amount ?? null;
 
   return (
     <ScrollView
@@ -107,6 +130,56 @@ export default function DashboardScreen() {
           </LinearGradient>
         </View>
 
+        {/* ── Budget alert banners ── */}
+        {showOverBudget && (
+          <View style={[styles.alertBanner, styles.alertRed]}>
+            <Text style={styles.alertIcon}>🚨</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.alertTitle, { color: '#991B1B' }]}>Over Budget!</Text>
+              <Text style={[styles.alertMsg, { color: '#B91C1C' }]}>
+                You've spent {fmt(totalSpent - income)} over your limit this month.
+              </Text>
+            </View>
+          </View>
+        )}
+        {showNearBudget && (
+          <View style={[styles.alertBanner, styles.alertAmber]}>
+            <Text style={styles.alertIcon}>⚠️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.alertTitle, { color: '#92400E' }]}>Budget Alert</Text>
+              <Text style={[styles.alertMsg, { color: '#B45309' }]}>
+                You've used {pctNum}% of your budget. Only {fmt(remaining)} remaining.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* ── Category warnings ── */}
+        {catWarnings.length > 0 && (
+          <View style={styles.catWarningsCard}>
+            <Text style={styles.catWarningsTitle}>Category Limit Alerts</Text>
+            {catWarnings.map(w => {
+              const isOver = w.spent >= w.limit;
+              return (
+                <View key={w.category} style={styles.catWarnRow}>
+                  <Text style={{ fontSize: 16 }}>{CATEGORY_ICONS[w.category] ?? '📦'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.catWarnName}>{w.category}</Text>
+                    <Text style={styles.catWarnMeta}>
+                      {fmt(w.spent)} / {fmt(w.limit)} {isOver ? '— over limit!' : `— ${Math.round(w.spent / w.limit * 100)}% used`}
+                    </Text>
+                  </View>
+                  <View style={[styles.catWarnBadge, { backgroundColor: isOver ? '#FEE2E2' : '#FEF3C7' }]}>
+                    <Text style={[styles.catWarnBadgeText, { color: isOver ? '#DC2626' : '#D97706' }]}>
+                      {isOver ? 'Over' : 'Near'}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {/* ── Budget progress ── */}
         {income > 0 && (
           <View style={styles.card}>
@@ -139,6 +212,9 @@ export default function DashboardScreen() {
             {topCategories.map(([cat, amt]) => {
               const catPct = totalSpent > 0 ? amt / totalSpent : 0;
               const color = CATEGORY_COLORS[cat] ?? '#6B7280';
+              const catLimit = getLimitForCat(cat);
+              const limitPct = catLimit != null ? Math.min(amt / catLimit, 1) : null;
+              const limitOver = catLimit != null && amt > catLimit;
               return (
                 <View key={cat} style={styles.catRow}>
                   <View style={[styles.catIconWrap, { backgroundColor: color + '18' }]}>
@@ -149,9 +225,27 @@ export default function DashboardScreen() {
                       <Text style={styles.catName}>{cat}</Text>
                       <Text style={styles.catAmt}>{fmt(amt)}</Text>
                     </View>
+                    {/* Spending bar vs total */}
                     <View style={styles.catBarBg}>
                       <View style={[styles.catBarFill, { width: `${Math.round(catPct * 100)}%` as any, backgroundColor: color }]} />
                     </View>
+                    {/* Category limit progress bar */}
+                    {catLimit != null && (
+                      <View style={{ marginTop: 4 }}>
+                        <View style={styles.catLimitBarBg}>
+                          <View style={[
+                            styles.catLimitBarFill,
+                            {
+                              width: `${Math.round((limitPct ?? 0) * 100)}%` as any,
+                              backgroundColor: limitOver ? '#EF4444' : limitPct! >= 0.9 ? '#F59E0B' : '#10B981',
+                            },
+                          ]} />
+                        </View>
+                        <Text style={styles.catLimitText}>
+                          {limitOver ? 'Over limit' : `${Math.round((limitPct ?? 0) * 100)}% of ${fmt(catLimit)} limit`}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               );
@@ -210,6 +304,27 @@ const styles = StyleSheet.create({
   balanceItemValue: { fontSize: 16, fontWeight: '800', color: '#fff' },
   balanceDivider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.15)', marginHorizontal: 16 },
 
+  alertBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    borderRadius: 16, padding: 16, marginBottom: 12,
+  },
+  alertRed: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FCA5A5' },
+  alertAmber: { backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FCD34D' },
+  alertIcon: { fontSize: 22, marginTop: 1 },
+  alertTitle: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
+  alertMsg: { fontSize: 13, lineHeight: 20 },
+
+  catWarningsCard: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12,
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+  },
+  catWarningsTitle: { fontSize: 13, fontWeight: '800', color: '#0F172A', marginBottom: 12 },
+  catWarnRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  catWarnName: { fontSize: 13, fontWeight: '700', color: '#1E293B' },
+  catWarnMeta: { fontSize: 11, color: '#94A3B8', marginTop: 1 },
+  catWarnBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  catWarnBadgeText: { fontSize: 11, fontWeight: '800' },
+
   card: { backgroundColor: '#fff', borderRadius: 20, padding: 20, marginBottom: 14, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   cardTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A', marginBottom: 16 },
@@ -232,6 +347,9 @@ const styles = StyleSheet.create({
   catAmt: { fontSize: 14, fontWeight: '800', color: '#0F172A' },
   catBarBg: { height: 5, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
   catBarFill: { height: '100%', borderRadius: 3 },
+  catLimitBarBg: { height: 3, backgroundColor: '#F1F5F9', borderRadius: 2, overflow: 'hidden' },
+  catLimitBarFill: { height: '100%', borderRadius: 2 },
+  catLimitText: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
 
   txRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F8FAFC' },
   txIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

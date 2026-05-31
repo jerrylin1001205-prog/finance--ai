@@ -17,6 +17,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 export const signUp = async (email: string, password: string) => {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw new Error(error.message);
+  // Try auto sign-in immediately (works when email confirmation is disabled in Supabase)
+  try {
+    await supabase.auth.signInWithPassword({ email, password });
+  } catch (_) {}
   return data.user;
 };
 
@@ -124,4 +128,36 @@ export const updateExpense = async (id: string, item_name: string, category: str
     .eq('id', id)
     .eq('user_id', user.id);
   if (error) throw new Error(error.message);
+};
+
+// ── Category Limits ────────────────────────────────────────────────────────────
+
+export interface CategoryLimit {
+  category: string;
+  limit_amount: number;
+}
+
+export const getCategoryLimits = async (): Promise<CategoryLimit[]> => {
+  const user = await getUser();
+  if (!user) return [];
+  const { data } = await supabase
+    .from('category_limits')
+    .select('category, limit_amount')
+    .eq('user_id', user.id);
+  return (data ?? []) as CategoryLimit[];
+};
+
+export const saveCategoryLimit = async (category: string, limit_amount: number): Promise<void> => {
+  const user = await getUser();
+  if (!user) throw new Error('Not logged in');
+  const { error } = await supabase
+    .from('category_limits')
+    .upsert({ user_id: user.id, category, limit_amount }, { onConflict: 'user_id,category' });
+  if (error) throw new Error(error.message);
+};
+
+export const deleteCategoryLimit = async (category: string): Promise<void> => {
+  const user = await getUser();
+  if (!user) return;
+  await supabase.from('category_limits').delete().eq('user_id', user.id).eq('category', category);
 };
