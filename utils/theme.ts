@@ -1,3 +1,4 @@
+import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type ThemeMode = 'light' | 'dark';
@@ -97,5 +98,3 @@ export function useTheme() {
   React.useEffect(() => subscribeTheme(setT), []);
   return theme;
 }
-
-import React from 'react';
