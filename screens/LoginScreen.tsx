@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { signIn } from '../services/supabase';
+import { supabase } from '../services/supabase';
 
 // Auth screens use a fixed light style — they appear before theme is fully loaded
 const C = {
@@ -34,6 +35,14 @@ export default function LoginScreen({ onGoToRegister }: Props) {
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
+  // Forgot password state
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [focusedForgot, setFocusedForgot] = useState(false);
+
   const handleLogin = async () => {
     setError('');
     if (!email.trim() || !email.includes('@')) { setError('Please enter a valid email address.'); return; }
@@ -42,10 +51,43 @@ export default function LoginScreen({ onGoToRegister }: Props) {
     try {
       await signIn(email.trim(), password);
     } catch (e: any) {
-      setError(e.message ?? 'Sign in failed. Check your email and password.');
+      const msg: string = e.message ?? 'Sign in failed. Check your email and password.';
+      if (msg.toLowerCase().includes('email not confirmed')) {
+        setError("Your email needs to be confirmed. Check your inbox or use 'Forgot password?' to resend.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = async () => {
+    setForgotError('');
+    if (!forgotEmail.trim() || !forgotEmail.includes('@')) {
+      setForgotError('Please enter a valid email address.');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+        redirectTo: 'https://finance-ai-xi-mocha.vercel.app/',
+      });
+      if (resetError) throw resetError;
+      setForgotSuccess(true);
+    } catch (e: any) {
+      setForgotError(e.message ?? 'Failed to send reset link. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleBackToSignIn = () => {
+    setShowForgot(false);
+    setForgotEmail('');
+    setForgotError('');
+    setForgotSuccess(false);
+    setFocusedForgot(false);
   };
 
   return (
@@ -93,82 +135,155 @@ export default function LoginScreen({ onGoToRegister }: Props) {
           )}
 
           <View style={styles.formBox}>
-            <Text style={styles.formTitle}>Welcome back</Text>
-            <Text style={styles.formSub}>Sign in to your account to continue</Text>
 
-            {/* Error */}
-            {error !== '' && (
-              <View style={styles.errorBox}>
-                <Ionicons name="alert-circle" size={16} color={C.error} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
+            {/* ── FORGOT PASSWORD FORM ── */}
+            {showForgot ? (
+              <>
+                <Text style={styles.formTitle}>Reset Password</Text>
+                <Text style={styles.formSub}>Enter your email and we'll send you a reset link.</Text>
 
-            {/* Email */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Email address</Text>
-              <View style={[styles.inputWrap, focusedField === 'email' && styles.inputFocused]}>
-                <Ionicons name="mail-outline" size={18} color={focusedField === 'email' ? C.primary : C.muted} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="you@email.com"
-                  placeholderTextColor={C.muted}
-                  value={email}
-                  onChangeText={v => { setEmail(v); setError(''); }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  onFocus={() => setFocusedField('email')}
-                  onBlur={() => setFocusedField(null)}
-                />
-              </View>
-            </View>
+                {/* Forgot error */}
+                {forgotError !== '' && (
+                  <View style={styles.errorBox}>
+                    <Ionicons name="alert-circle" size={16} color={C.error} />
+                    <Text style={styles.errorText}>{forgotError}</Text>
+                  </View>
+                )}
 
-            {/* Password */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Password</Text>
-              <View style={[styles.inputWrap, focusedField === 'password' && styles.inputFocused]}>
-                <Ionicons name="lock-closed-outline" size={18} color={focusedField === 'password' ? C.primary : C.muted} style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  placeholder="Enter your password"
-                  placeholderTextColor={C.muted}
-                  value={password}
-                  onChangeText={v => { setPassword(v); setError(''); }}
-                  secureTextEntry={!showPw}
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => setFocusedField(null)}
-                />
-                <TouchableOpacity onPress={() => setShowPw(v => !v)} style={styles.eyeBtn}>
-                  <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={C.muted} />
+                {/* Forgot success */}
+                {forgotSuccess ? (
+                  <View style={styles.successBox}>
+                    <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                    <Text style={styles.successText}>Check your email for a password reset link.</Text>
+                  </View>
+                ) : (
+                  <>
+                    {/* Email field */}
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Email address</Text>
+                      <View style={[styles.inputWrap, focusedForgot && styles.inputFocused]}>
+                        <Ionicons name="mail-outline" size={18} color={focusedForgot ? C.primary : C.muted} style={styles.inputIcon} />
+                        <TextInput
+                          style={styles.input}
+                          placeholder="you@email.com"
+                          placeholderTextColor={C.muted}
+                          value={forgotEmail}
+                          onChangeText={v => { setForgotEmail(v); setForgotError(''); }}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          onFocus={() => setFocusedForgot(true)}
+                          onBlur={() => setFocusedForgot(false)}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Send reset link button */}
+                    <TouchableOpacity
+                      style={[styles.submitBtn, forgotLoading && { opacity: 0.7 }]}
+                      onPress={handleForgotPassword}
+                      disabled={forgotLoading}
+                      activeOpacity={0.88}
+                    >
+                      {forgotLoading
+                        ? <ActivityIndicator color="#fff" />
+                        : <Text style={styles.submitText}>Send Reset Link</Text>
+                      }
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {/* Back to sign in */}
+                <TouchableOpacity style={styles.backLink} onPress={handleBackToSignIn}>
+                  <Ionicons name="arrow-back" size={15} color={C.primary} />
+                  <Text style={styles.backLinkText}>Back to Sign In</Text>
                 </TouchableOpacity>
-              </View>
-            </View>
+              </>
+            ) : (
+              <>
+                {/* ── MAIN LOGIN FORM ── */}
+                <Text style={styles.formTitle}>Welcome back</Text>
+                <Text style={styles.formSub}>Sign in to your account to continue</Text>
 
-            {/* Submit */}
-            <TouchableOpacity
-              style={[styles.submitBtn, loading && { opacity: 0.7 }]}
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.88}
-            >
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.submitText}>Sign In</Text>
-              }
-            </TouchableOpacity>
+                {/* Error */}
+                {error !== '' && (
+                  <View style={styles.errorBox}>
+                    <Ionicons name="alert-circle" size={16} color={C.error} />
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                )}
 
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
+                {/* Email */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Email address</Text>
+                  <View style={[styles.inputWrap, focusedField === 'email' && styles.inputFocused]}>
+                    <Ionicons name="mail-outline" size={18} color={focusedField === 'email' ? C.primary : C.muted} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="you@email.com"
+                      placeholderTextColor={C.muted}
+                      value={email}
+                      onChangeText={v => { setEmail(v); setError(''); }}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      onFocus={() => setFocusedField('email')}
+                      onBlur={() => setFocusedField(null)}
+                    />
+                  </View>
+                </View>
 
-            {/* Switch to register */}
-            <TouchableOpacity style={styles.switchBtn} onPress={onGoToRegister} activeOpacity={0.85}>
-              <Text style={styles.switchText}>Create a new account</Text>
-            </TouchableOpacity>
+                {/* Password */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Password</Text>
+                  <View style={[styles.inputWrap, focusedField === 'password' && styles.inputFocused]}>
+                    <Ionicons name="lock-closed-outline" size={18} color={focusedField === 'password' ? C.primary : C.muted} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      placeholder="Enter your password"
+                      placeholderTextColor={C.muted}
+                      value={password}
+                      onChangeText={v => { setPassword(v); setError(''); }}
+                      secureTextEntry={!showPw}
+                      onFocus={() => setFocusedField('password')}
+                      onBlur={() => setFocusedField(null)}
+                    />
+                    <TouchableOpacity onPress={() => setShowPw(v => !v)} style={styles.eyeBtn}>
+                      <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={C.muted} />
+                    </TouchableOpacity>
+                  </View>
+                  {/* Forgot password link */}
+                  <TouchableOpacity style={styles.forgotLink} onPress={() => setShowForgot(true)}>
+                    <Text style={styles.forgotLinkText}>Forgot password?</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Submit */}
+                <TouchableOpacity
+                  style={[styles.submitBtn, loading && { opacity: 0.7 }]}
+                  onPress={handleLogin}
+                  disabled={loading}
+                  activeOpacity={0.88}
+                >
+                  {loading
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={styles.submitText}>Sign In</Text>
+                  }
+                </TouchableOpacity>
+
+                {/* Divider */}
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                {/* Switch to register */}
+                <TouchableOpacity style={styles.switchBtn} onPress={onGoToRegister} activeOpacity={0.85}>
+                  <Text style={styles.switchText}>Create a new account</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
 
           {/* Footer */}
@@ -233,6 +348,13 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, fontSize: 13, color: C.error, fontWeight: '600', lineHeight: 18 },
 
+  successBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#D1FAE5', borderRadius: 12, padding: 13,
+    marginBottom: 20, borderWidth: 1, borderColor: '#6EE7B7',
+  },
+  successText: { flex: 1, fontSize: 13, color: '#059669', fontWeight: '600', lineHeight: 18 },
+
   fieldGroup: { marginBottom: 18 },
   fieldLabel: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 8 },
   inputWrap: {
@@ -244,6 +366,12 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: 10 },
   input: { flex: 1, fontSize: 15, color: C.text, paddingVertical: 13, fontWeight: '500' },
   eyeBtn: { padding: 6 },
+
+  forgotLink: { alignSelf: 'flex-end', marginTop: 8 },
+  forgotLinkText: { fontSize: 13, color: C.primary, fontWeight: '600' },
+
+  backLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20, alignSelf: 'center' },
+  backLinkText: { fontSize: 14, color: C.primary, fontWeight: '700' },
 
   submitBtn: {
     backgroundColor: C.primary, borderRadius: 12,

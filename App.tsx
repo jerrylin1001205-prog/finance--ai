@@ -22,6 +22,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import LandingScreen from './screens/LandingScreen';
+import LegalScreen from './screens/LegalScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -172,6 +173,7 @@ function AppContent() {
   const { width } = useWindowDimensions();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [authView, setAuthView] = useState<'landing' | 'login' | 'register'>('landing');
+  const [legalView, setLegalView] = useState<'privacy' | 'terms' | null>(null);
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
 
   useEffect(() => {
@@ -196,12 +198,17 @@ function AppContent() {
   }
 
   if (!session) {
+    if (legalView !== null) {
+      return <LegalScreen section={legalView} onBack={() => setLegalView(null)} />;
+    }
     if (authView === 'landing') {
       return (
         <View style={{ flex: 1 }}>
           <LandingScreen
             onGetStarted={() => setAuthView('register')}
             onSignIn={() => setAuthView('login')}
+            onPrivacy={() => setLegalView('privacy')}
+            onTerms={() => setLegalView('terms')}
           />
         </View>
       );

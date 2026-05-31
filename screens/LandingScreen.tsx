@@ -148,9 +148,11 @@ function AppPreview({ currency }: { currency: Currency }) {
 interface Props {
   onGetStarted: () => void;
   onSignIn: () => void;
+  onPrivacy: () => void;
+  onTerms: () => void;
 }
 
-export default function LandingScreen({ onGetStarted, onSignIn }: Props) {
+export default function LandingScreen({ onGetStarted, onSignIn, onPrivacy, onTerms }: Props) {
   const { width, height } = useWindowDimensions();
   const isWide = Platform.OS === 'web' && width >= 900;
   const [selected, setSelected] = useState<Currency>(getCurrency());
@@ -456,6 +458,15 @@ export default function LandingScreen({ onGetStarted, onSignIn }: Props) {
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>© 2026 Finance AI · Free · Private · No Ads</Text>
+            <View style={styles.footerLinks}>
+              <TouchableOpacity onPress={onPrivacy}>
+                <Text style={styles.footerLink}>Privacy Policy</Text>
+              </TouchableOpacity>
+              <Text style={styles.footerDot}>·</Text>
+              <TouchableOpacity onPress={onTerms}>
+                <Text style={styles.footerLink}>Terms of Service</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </LinearGradient>
 
@@ -643,6 +654,9 @@ const styles = StyleSheet.create({
   ctaSignIn: { fontSize: 14, color: 'rgba(255,255,255,0.35)', fontWeight: '500' },
   footer: { marginTop: 60, paddingTop: 24, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', alignSelf: 'stretch', alignItems: 'center' },
   footerText: { fontSize: 12, color: '#334155' },
+  footerLinks: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  footerLink: { fontSize: 12, color: '#64748B', fontWeight: '600', textDecorationLine: 'underline' },
+  footerDot: { fontSize: 12, color: '#334155' },
 
   // Trust
   trustGrid: { gap: 14 },

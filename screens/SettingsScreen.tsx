@@ -307,6 +307,25 @@ export default function SettingsScreen() {
 
         {/* ── About ── */}
         <SectionHeader title="ABOUT" />
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                (window as any).open('mailto:support@financeai.app');
+              }
+            }}
+          >
+            <View style={styles.settingIconWrap}>
+              <Ionicons name="mail-outline" size={18} color={PRIMARY} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.settingLabel}>Contact Support</Text>
+              <Text style={styles.settingValue}>support@financeai.app</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+          </TouchableOpacity>
+        </View>
         <View style={[styles.card, { alignItems: 'center', paddingVertical: 28 }]}>
           <LinearGradient colors={[PRIMARY, '#4F46E5']} style={styles.aboutIcon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <Text style={styles.aboutIconText}>F</Text>
