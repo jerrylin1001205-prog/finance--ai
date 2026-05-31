@@ -1,17 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  useWindowDimensions, Modal, FlatList, SafeAreaView,
+  ScrollView, useWindowDimensions, Modal, FlatList, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CURRENCIES, Currency, saveCurrency, getCurrency } from '../utils/currency';
 
 const PRIMARY = '#2563EB';
-
-const PILLS = [
-  { icon: 'bar-chart-outline' as const, label: 'Budget tracking' },
-  { icon: 'receipt-outline' as const,   label: 'Expense logging' },
-  { icon: 'time-outline' as const,      label: 'Full history' },
+const SLIDES = [
+  {
+    bg: '#0F172A',
+    accent: '#2563EB',
+    tag: '💰 Personal Finance',
+    headline: 'Take control of\nyour money.',
+    sub: 'Finance AI helps you track income, log expenses, and stay on budget — all in one clean app.',
+    visual: '📊',
+  },
+  {
+    bg: '#1E3A5F',
+    accent: '#38BDF8',
+    tag: '📥 Log Expenses',
+    headline: 'Every purchase,\ncaptured instantly.',
+    sub: 'Add expenses by category — food, transport, rent, shopping, health — in just a few taps.',
+    visual: '🧾',
+  },
+  {
+    bg: '#14532D',
+    accent: '#4ADE80',
+    tag: '📈 Budget Tracking',
+    headline: 'See how much\nyou have left.',
+    sub: 'Set your monthly income and watch your remaining budget update in real time as you spend.',
+    visual: '💹',
+  },
+  {
+    bg: '#3B1F6A',
+    accent: '#A78BFA',
+    tag: '🌍 Your Currency',
+    headline: 'Your money,\nyour currency.',
+    sub: 'Choose from 12 currencies worldwide. Finance AI adapts to wherever you are.',
+    visual: '🌐',
+    isCurrency: true,
+  },
+  {
+    bg: '#1E3A5F',
+    accent: '#F59E0B',
+    tag: '🚀 Get Started',
+    headline: 'Ready to take\ncontrol?',
+    sub: 'It\'s free. No credit card needed. Sign up in seconds and start tracking today.',
+    visual: '🎯',
+    isCTA: true,
+  },
 ];
 
 interface Props {
@@ -20,9 +58,20 @@ interface Props {
 }
 
 export default function LandingScreen({ onGetStarted, onSignIn }: Props) {
-  const { height } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [selected, setSelected] = useState<Currency>(getCurrency());
   const [showPicker, setShowPicker] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  const goTo = (index: number) => {
+    scrollRef.current?.scrollTo({ y: index * height, animated: true });
+  };
+
+  const handleScroll = (e: any) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.y / height);
+    setCurrentSlide(idx);
+  };
 
   const handleSelectCurrency = async (c: Currency) => {
     await saveCurrency(c);
@@ -31,9 +80,9 @@ export default function LandingScreen({ onGetStarted, onSignIn }: Props) {
   };
 
   return (
-    <View style={[styles.root, { minHeight: height }]}>
+    <View style={{ flex: 1 }}>
 
-      {/* Top nav */}
+      {/* Fixed nav */}
       <View style={styles.nav}>
         <View style={styles.navBrand}>
           <View style={styles.navLogo}><Text style={styles.navLogoText}>F</Text></View>
@@ -44,49 +93,79 @@ export default function LandingScreen({ onGetStarted, onSignIn }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* Hero */}
-      <View style={styles.hero}>
-        <View style={styles.badge}>
-          <Ionicons name="flash" size={13} color={PRIMARY} />
-          <Text style={styles.badgeText}>Free · No credit card needed</Text>
-        </View>
+      {/* Slides */}
+      <ScrollView
+        ref={scrollRef}
+        pagingEnabled
+        showsVerticalScrollIndicator={false}
+        onMomentumScrollEnd={handleScroll}
+        style={{ flex: 1 }}
+      >
+        {SLIDES.map((slide, i) => (
+          <View key={i} style={[styles.slide, { height, backgroundColor: slide.bg }]}>
 
-        <Text style={styles.headline}>Track your money,{'\n'}stress-free.</Text>
-        <Text style={styles.sub}>
-          Set your monthly income, log expenses by category,
-          and see your budget update instantly.
-        </Text>
-
-        {/* Currency picker */}
-        <View style={styles.currencyRow}>
-          <Text style={styles.currencyLabel}>Your currency:</Text>
-          <TouchableOpacity style={styles.currencyBtn} onPress={() => setShowPicker(true)}>
-            <Text style={styles.currencyFlag}>{selected.flag}</Text>
-            <Text style={styles.currencyCode}>{selected.code} ({selected.symbol})</Text>
-            <Ionicons name="chevron-down" size={14} color={PRIMARY} />
-          </TouchableOpacity>
-        </View>
-
-        {/* CTAs */}
-        <View style={styles.ctaRow}>
-          <TouchableOpacity style={styles.btnPrimary} onPress={onGetStarted}>
-            <Text style={styles.btnPrimaryText}>Get Started — It's Free</Text>
-            <Ionicons name="arrow-forward" size={16} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Feature pills */}
-        <View style={styles.pills}>
-          {PILLS.map(p => (
-            <View key={p.label} style={styles.pill}>
-              <Ionicons name={p.icon} size={14} color={PRIMARY} />
-              <Text style={styles.pillText}>{p.label}</Text>
+            {/* Tag */}
+            <View style={[styles.tag, { backgroundColor: slide.accent + '30', borderColor: slide.accent + '60' }]}>
+              <Text style={[styles.tagText, { color: slide.accent }]}>{slide.tag}</Text>
             </View>
-          ))}
-        </View>
+
+            {/* Big emoji visual */}
+            <Text style={styles.visual}>{slide.visual}</Text>
+
+            {/* Headline */}
+            <Text style={styles.headline}>{slide.headline}</Text>
+            <Text style={styles.sub}>{slide.sub}</Text>
+
+            {/* Currency picker slide */}
+            {slide.isCurrency && (
+              <TouchableOpacity
+                style={[styles.currencyBtn, { borderColor: slide.accent }]}
+                onPress={() => setShowPicker(true)}
+              >
+                <Text style={styles.currencyFlag}>{selected.flag}</Text>
+                <Text style={[styles.currencyCode, { color: slide.accent }]}>
+                  {selected.code} — {selected.label}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={slide.accent} />
+              </TouchableOpacity>
+            )}
+
+            {/* CTA slide */}
+            {slide.isCTA && (
+              <View style={styles.ctaGroup}>
+                <TouchableOpacity style={styles.btnPrimary} onPress={onGetStarted}>
+                  <Text style={styles.btnPrimaryText}>Create Free Account</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.btnGhost} onPress={onSignIn}>
+                  <Text style={styles.btnGhostText}>Already have an account? Sign In</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Scroll hint */}
+            {i < SLIDES.length - 1 && (
+              <TouchableOpacity style={styles.scrollHint} onPress={() => goTo(i + 1)}>
+                <Ionicons name="chevron-down" size={22} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* Dot indicators */}
+      <View style={styles.dots}>
+        {SLIDES.map((_, i) => (
+          <TouchableOpacity key={i} onPress={() => goTo(i)}>
+            <View style={[
+              styles.dot,
+              i === currentSlide ? styles.dotActive : styles.dotInactive,
+            ]} />
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Currency picker modal */}
+      {/* Currency modal */}
       <Modal visible={showPicker} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
@@ -123,12 +202,12 @@ export default function LandingScreen({ onGetStarted, onSignIn }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F7F8FA', width: '100%' as any },
-
   // Nav
   nav: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 24, paddingTop: 20, paddingBottom: 12,
+    paddingHorizontal: 24, paddingTop: 20, paddingBottom: 14,
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   navBrand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   navLogo: {
@@ -136,69 +215,74 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   navLogoText: { color: '#fff', fontSize: 16, fontWeight: '900' },
-  navName: { fontSize: 17, fontWeight: '800', color: '#111827' },
+  navName: { fontSize: 17, fontWeight: '800', color: '#fff' },
   navSignIn: {
     paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E7EB',
-    backgroundColor: '#fff',
+    borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
   },
-  navSignInText: { fontSize: 13, fontWeight: '600', color: '#111827' },
+  navSignInText: { fontSize: 13, fontWeight: '600', color: '#fff' },
 
-  // Hero
-  hero: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 28, paddingBottom: 48,
+  // Slide
+  slide: {
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, paddingTop: 80,
   },
-  badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 20, marginBottom: 24,
+  tag: {
+    borderWidth: 1, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 6, marginBottom: 28,
   },
-  badgeText: { fontSize: 12, fontWeight: '600', color: PRIMARY },
+  tagText: { fontSize: 13, fontWeight: '700' },
+  visual: { fontSize: 80, marginBottom: 24 },
   headline: {
-    fontSize: 38, fontWeight: '900', color: '#111827',
-    textAlign: 'center', lineHeight: 46, marginBottom: 16,
+    fontSize: 42, fontWeight: '900', color: '#fff',
+    textAlign: 'center', lineHeight: 50, marginBottom: 18,
   },
   sub: {
-    fontSize: 15, color: '#6B7280', textAlign: 'center',
-    lineHeight: 24, maxWidth: 340, marginBottom: 32,
+    fontSize: 16, color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center', lineHeight: 26, maxWidth: 360, marginBottom: 32,
   },
 
   // Currency
-  currencyRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 28,
-  },
-  currencyLabel: { fontSize: 14, color: '#6B7280', fontWeight: '500' },
   currencyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#EFF6FF', paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE',
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderWidth: 1.5, borderRadius: 14,
+    paddingHorizontal: 20, paddingVertical: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  currencyFlag: { fontSize: 16 },
-  currencyCode: { fontSize: 14, fontWeight: '700', color: PRIMARY },
+  currencyFlag: { fontSize: 22 },
+  currencyCode: { fontSize: 15, fontWeight: '700', flex: 1 },
 
   // CTA
-  ctaRow: { marginBottom: 28 },
+  ctaGroup: { alignItems: 'center', gap: 16 },
   btnPrimary: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: PRIMARY, paddingHorizontal: 32, paddingVertical: 16,
-    borderRadius: 14,
-    shadowColor: PRIMARY, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: PRIMARY, paddingHorizontal: 36, paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: PRIMARY, shadowOpacity: 0.5, shadowRadius: 20, elevation: 8,
   },
-  btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnPrimaryText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  btnGhost: { paddingVertical: 10 },
+  btnGhostText: { color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '500' },
 
-  // Pills
-  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
-  pill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB',
+  // Scroll hint
+  scrollHint: {
+    position: 'absolute', bottom: 32,
+    alignSelf: 'center',
   },
-  pillText: { fontSize: 12, fontWeight: '600', color: '#374151' },
+
+  // Dots
+  dots: {
+    position: 'absolute', right: 16,
+    top: '50%' as any, gap: 6,
+    transform: [{ translateY: -40 }],
+  },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  dotActive: { backgroundColor: '#fff', height: 18, borderRadius: 3 },
+  dotInactive: { backgroundColor: 'rgba(255,255,255,0.3)' },
 
   // Modal
   modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end',
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end',
   },
   modalSheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
