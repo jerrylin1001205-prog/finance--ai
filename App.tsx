@@ -12,6 +12,7 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase, getUser } from './services/supabase';
+import { loadCurrency } from './utils/currency';
 import DashboardScreen from './screens/DashboardScreen';
 import AddTransactionScreen from './screens/AddTransactionScreen';
 import HistoryScreen from './screens/HistoryScreen';
@@ -168,6 +169,7 @@ function AppContent() {
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
 
   useEffect(() => {
+    loadCurrency();
     supabase.auth.getSession()
       .then(({ data: { session } }) => setSession(session))
       .catch(() => setSession(null));

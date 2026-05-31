@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getMonthExpenses, removeExpense, updateExpense, Expense } from '../services/supabase';
+import { fmt } from '../utils/currency';
 
 const PRIMARY = '#2563EB';
 const C = {
@@ -22,10 +23,6 @@ const CATEGORY_ICONS: Record<string, string> = {
   Food: '🍔', Transport: '🚗', Bills: '💡', Shopping: '🛍️',
   Health: '💊', Entertainment: '🎬', Rent: '🏠', Other: '📦',
 };
-
-function fmt(n: number) {
-  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });

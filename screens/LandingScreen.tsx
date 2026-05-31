@@ -1,37 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Platform, useWindowDimensions,
+  useWindowDimensions, Modal, FlatList, SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { CURRENCIES, Currency, saveCurrency, getCurrency } from '../utils/currency';
 
 const PRIMARY = '#2563EB';
-const COLORS = {
-  bg: '#F7F8FA', card: '#FFFFFF', text: '#111827', sub: '#6B7280',
-  border: '#E5E7EB', accent: '#EFF6FF',
-};
 
-const FEATURES = [
-  {
-    icon: 'wallet-outline' as const,
-    title: 'Track Monthly Income',
-    desc: 'Set your USD income each month and see exactly how much you have left to spend.',
-  },
-  {
-    icon: 'receipt-outline' as const,
-    title: 'Log Expenses Instantly',
-    desc: 'Add purchases by category — food, transport, shopping, and more — in seconds.',
-  },
-  {
-    icon: 'bar-chart-outline' as const,
-    title: 'Budget at a Glance',
-    desc: 'See your spending vs. income with a clear progress bar and category breakdown.',
-  },
-  {
-    icon: 'time-outline' as const,
-    title: 'Full History',
-    desc: 'Browse and search every transaction you\'ve recorded, with edit and delete support.',
-  },
+const PILLS = [
+  { icon: 'bar-chart-outline' as const, label: 'Budget tracking' },
+  { icon: 'receipt-outline' as const,   label: 'Expense logging' },
+  { icon: 'time-outline' as const,      label: 'Full history' },
 ];
 
 interface Props {
@@ -40,150 +20,203 @@ interface Props {
 }
 
 export default function LandingScreen({ onGetStarted, onSignIn }: Props) {
-  const { width } = useWindowDimensions();
-  const isWide = Platform.OS === 'web' && width >= 640;
+  const { height } = useWindowDimensions();
+  const [selected, setSelected] = useState<Currency>(getCurrency());
+  const [showPicker, setShowPicker] = useState(false);
+
+  const handleSelectCurrency = async (c: Currency) => {
+    await saveCurrency(c);
+    setSelected(c);
+    setShowPicker(false);
+  };
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={[styles.root, { minHeight: height }]}>
+
+      {/* Top nav */}
+      <View style={styles.nav}>
+        <View style={styles.navBrand}>
+          <View style={styles.navLogo}><Text style={styles.navLogoText}>F</Text></View>
+          <Text style={styles.navName}>Finance AI</Text>
+        </View>
+        <TouchableOpacity style={styles.navSignIn} onPress={onSignIn}>
+          <Text style={styles.navSignInText}>Sign In</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Hero */}
       <View style={styles.hero}>
-        <View style={styles.logoWrap}>
-          <View style={styles.logoCircle}>
-            <Text style={styles.logoLetter}>F</Text>
-          </View>
+        <View style={styles.badge}>
+          <Ionicons name="flash" size={13} color={PRIMARY} />
+          <Text style={styles.badgeText}>Free · No credit card needed</Text>
         </View>
-        <Text style={styles.appName}>Finance AI</Text>
-        <Text style={styles.tagline}>Your simple USD monthly finance tracker</Text>
-        <Text style={styles.subtitle}>
-          Take control of your money. Set your income, log every expense, and
-          watch your budget update in real time — all in one clean app.
+
+        <Text style={styles.headline}>Track your money,{'\n'}stress-free.</Text>
+        <Text style={styles.sub}>
+          Set your monthly income, log expenses by category,
+          and see your budget update instantly.
         </Text>
 
+        {/* Currency picker */}
+        <View style={styles.currencyRow}>
+          <Text style={styles.currencyLabel}>Your currency:</Text>
+          <TouchableOpacity style={styles.currencyBtn} onPress={() => setShowPicker(true)}>
+            <Text style={styles.currencyFlag}>{selected.flag}</Text>
+            <Text style={styles.currencyCode}>{selected.code} ({selected.symbol})</Text>
+            <Ionicons name="chevron-down" size={14} color={PRIMARY} />
+          </TouchableOpacity>
+        </View>
+
+        {/* CTAs */}
         <View style={styles.ctaRow}>
           <TouchableOpacity style={styles.btnPrimary} onPress={onGetStarted}>
             <Text style={styles.btnPrimaryText}>Get Started — It's Free</Text>
+            <Ionicons name="arrow-forward" size={16} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.btnSecondary} onPress={onSignIn}>
-            <Text style={styles.btnSecondaryText}>Sign In</Text>
-          </TouchableOpacity>
+        </View>
+
+        {/* Feature pills */}
+        <View style={styles.pills}>
+          {PILLS.map(p => (
+            <View key={p.label} style={styles.pill}>
+              <Ionicons name={p.icon} size={14} color={PRIMARY} />
+              <Text style={styles.pillText}>{p.label}</Text>
+            </View>
+          ))}
         </View>
       </View>
 
-      {/* Features */}
-      <View style={[styles.featuresGrid, isWide && styles.featuresGridWide]}>
-        {FEATURES.map((f) => (
-          <View key={f.title} style={[styles.featureCard, isWide && styles.featureCardWide]}>
-            <View style={styles.featureIconWrap}>
-              <Ionicons name={f.icon} size={24} color={PRIMARY} />
+      {/* Currency picker modal */}
+      <Modal visible={showPicker} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choose Currency</Text>
+              <TouchableOpacity onPress={() => setShowPicker(false)}>
+                <Ionicons name="close" size={22} color="#6B7280" />
+              </TouchableOpacity>
             </View>
-            <Text style={styles.featureTitle}>{f.title}</Text>
-            <Text style={styles.featureDesc}>{f.desc}</Text>
+            <FlatList
+              data={CURRENCIES}
+              keyExtractor={c => c.code}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.currencyItem, item.code === selected.code && styles.currencyItemActive]}
+                  onPress={() => handleSelectCurrency(item)}
+                >
+                  <Text style={styles.currencyItemFlag}>{item.flag}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.currencyItemCode}>{item.code} — {item.label}</Text>
+                    <Text style={styles.currencyItemSymbol}>Symbol: {item.symbol}</Text>
+                  </View>
+                  {item.code === selected.code && (
+                    <Ionicons name="checkmark-circle" size={20} color={PRIMARY} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
           </View>
-        ))}
-      </View>
-
-      {/* Stats strip */}
-      <View style={styles.statsRow}>
-        {[
-          { value: 'USD', label: 'Currency' },
-          { value: '100%', label: 'Private' },
-          { value: 'Free', label: 'Always' },
-        ].map((s) => (
-          <View key={s.label} style={styles.statItem}>
-            <Text style={styles.statValue}>{s.value}</Text>
-            <Text style={styles.statLabel}>{s.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Footer CTA */}
-      <View style={styles.footerCta}>
-        <Text style={styles.footerCtaTitle}>Ready to take control?</Text>
-        <TouchableOpacity style={styles.btnPrimary} onPress={onGetStarted}>
-          <Text style={styles.btnPrimaryText}>Create Free Account</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: COLORS.bg },
-  container: { paddingBottom: 48 },
+  root: { flex: 1, backgroundColor: '#F7F8FA' },
+
+  // Nav
+  nav: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 24, paddingTop: 20, paddingBottom: 12,
+  },
+  navBrand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  navLogo: {
+    width: 32, height: 32, borderRadius: 9, backgroundColor: PRIMARY,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  navLogoText: { color: '#fff', fontSize: 16, fontWeight: '900' },
+  navName: { fontSize: 17, fontWeight: '800', color: '#111827' },
+  navSignIn: {
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+  },
+  navSignInText: { fontSize: 13, fontWeight: '600', color: '#111827' },
 
   // Hero
   hero: {
-    alignItems: 'center', paddingHorizontal: 24,
-    paddingTop: 56, paddingBottom: 40,
-    backgroundColor: COLORS.card,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 28, paddingBottom: 48,
   },
-  logoWrap: { marginBottom: 16 },
-  logoCircle: {
-    width: 72, height: 72, borderRadius: 20, backgroundColor: PRIMARY,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: PRIMARY, shadowOpacity: 0.35, shadowRadius: 16, elevation: 8,
+  badge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 20, marginBottom: 24,
   },
-  logoLetter: { color: '#fff', fontSize: 36, fontWeight: '900' },
-  appName: { fontSize: 30, fontWeight: '800', color: COLORS.text, marginBottom: 6 },
-  tagline: { fontSize: 15, fontWeight: '600', color: PRIMARY, marginBottom: 14 },
-  subtitle: {
-    fontSize: 15, color: COLORS.sub, textAlign: 'center',
-    lineHeight: 23, maxWidth: 440, marginBottom: 32,
+  badgeText: { fontSize: 12, fontWeight: '600', color: PRIMARY },
+  headline: {
+    fontSize: 38, fontWeight: '900', color: '#111827',
+    textAlign: 'center', lineHeight: 46, marginBottom: 16,
   },
-  ctaRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap', justifyContent: 'center' },
+  sub: {
+    fontSize: 15, color: '#6B7280', textAlign: 'center',
+    lineHeight: 24, maxWidth: 340, marginBottom: 32,
+  },
+
+  // Currency
+  currencyRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 28,
+  },
+  currencyLabel: { fontSize: 14, color: '#6B7280', fontWeight: '500' },
+  currencyBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#EFF6FF', paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE',
+  },
+  currencyFlag: { fontSize: 16 },
+  currencyCode: { fontSize: 14, fontWeight: '700', color: PRIMARY },
+
+  // CTA
+  ctaRow: { marginBottom: 28 },
   btnPrimary: {
-    backgroundColor: PRIMARY, paddingHorizontal: 28, paddingVertical: 14,
-    borderRadius: 12,
-    shadowColor: PRIMARY, shadowOpacity: 0.3, shadowRadius: 10, elevation: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: PRIMARY, paddingHorizontal: 32, paddingVertical: 16,
+    borderRadius: 14,
+    shadowColor: PRIMARY, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
   },
-  btnPrimaryText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  btnSecondary: {
-    borderWidth: 1.5, borderColor: COLORS.border,
-    paddingHorizontal: 28, paddingVertical: 14, borderRadius: 12,
-    backgroundColor: COLORS.card,
-  },
-  btnSecondaryText: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
+  btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  // Features
-  featuresGrid: {
-    paddingHorizontal: 16, paddingTop: 32, gap: 12,
+  // Pills
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
+  pill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB',
   },
-  featuresGridWide: {
-    flexDirection: 'row', flexWrap: 'wrap',
-  },
-  featureCard: {
-    backgroundColor: COLORS.card, borderRadius: 14, padding: 20,
-    borderWidth: 1, borderColor: COLORS.border,
-    marginBottom: 12,
-  },
-  featureCardWide: {
-    flex: 1, minWidth: 240, margin: 6,
-  },
-  featureIconWrap: {
-    width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.accent,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
-  },
-  featureTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
-  featureDesc: { fontSize: 13, color: COLORS.sub, lineHeight: 20 },
+  pillText: { fontSize: 12, fontWeight: '600', color: '#374151' },
 
-  // Stats
-  statsRow: {
-    flexDirection: 'row', justifyContent: 'space-around',
-    backgroundColor: PRIMARY, marginHorizontal: 16, marginTop: 28,
-    borderRadius: 16, paddingVertical: 24,
+  // Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end',
   },
-  statItem: { alignItems: 'center' },
-  statValue: { fontSize: 22, fontWeight: '900', color: '#fff' },
-  statLabel: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-
-  // Footer CTA
-  footerCta: {
-    alignItems: 'center', paddingTop: 40, paddingHorizontal: 24, gap: 16,
+  modalSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 20, maxHeight: '75%',
   },
-  footerCtaTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+  },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: '#111827' },
+  currencyItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: '#F9FAFB',
+  },
+  currencyItemActive: { backgroundColor: '#EFF6FF' },
+  currencyItemFlag: { fontSize: 24 },
+  currencyItemCode: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  currencyItemSymbol: { fontSize: 12, color: '#6B7280', marginTop: 1 },
 });

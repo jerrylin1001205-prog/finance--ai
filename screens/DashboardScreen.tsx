@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getMonthlyIncome, getMonthExpenses, Expense } from '../services/supabase';
+import { fmt } from '../utils/currency';
 
 const COLORS = {
   primary: '#2563EB',
@@ -31,10 +32,6 @@ function getMotivation(income: number, totalSpent: number) {
     return { text: "You're on track. Keep it up!", bg: '#F0FDF4', color: COLORS.income };
   }
   return { text: "Set your monthly income to start tracking.", bg: '#EFF6FF', color: COLORS.primary };
-}
-
-function fmt(n: number) {
-  return '$' + Math.round(n).toLocaleString('en-US');
 }
 
 function formatDate(iso: string) {

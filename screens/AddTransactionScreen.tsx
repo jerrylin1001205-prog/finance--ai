@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { addExpense, getMonthlyIncome, getMonthExpenses } from '../services/supabase';
+import { fmt, getCurrency } from '../utils/currency';
 
 const PRIMARY = '#2563EB';
 const C = {
@@ -23,9 +24,6 @@ const CATEGORY_ICONS: Record<string, string> = {
   Health: '💊', Entertainment: '🎬', Rent: '🏠', Other: '📦',
 };
 
-function fmt(n: number) {
-  return '$' + Math.round(n).toLocaleString('en-US');
-}
 
 export default function AddTransactionScreen({ navigation }: any) {
   const [itemName, setItemName] = useState('');
@@ -107,7 +105,7 @@ export default function AddTransactionScreen({ navigation }: any) {
 
         {/* Amount */}
         <View style={styles.card}>
-          <Text style={styles.label}>AMOUNT (USD)</Text>
+          <Text style={styles.label}>AMOUNT ({getCurrency().code})</Text>
           <TextInput
             style={styles.amountInput}
             placeholder="0.00"

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getMonthlyIncome, saveMonthlyIncome, signOut } from '../services/supabase';
+import { fmt, getCurrency } from '../utils/currency';
 
 const PRIMARY = '#2563EB';
 const C = {
@@ -19,9 +20,6 @@ function monthLabel() {
   return new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 }
 
-function fmt(n: number) {
-  return '$' + Math.round(n).toLocaleString('en-US');
-}
 
 export default function BudgetScreen() {
   const [current, setCurrent] = useState(0);
@@ -68,7 +66,7 @@ export default function BudgetScreen() {
         )}
 
         <View style={styles.card}>
-          <Text style={styles.label}>SET YOUR MONTHLY INCOME (USD)</Text>
+          <Text style={styles.label}>SET YOUR MONTHLY INCOME ({getCurrency().code})</Text>
           <TextInput
             style={styles.amountInput}
             placeholder="0.00"
