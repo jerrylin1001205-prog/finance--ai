@@ -6,9 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { signIn } from '../services/supabase';
-
-const PRIMARY = '#6366F1';
-const BG = '#F0F4F8';
+import { useTheme } from '../utils/theme';
 
 interface Props {
   onGoToRegister: () => void;

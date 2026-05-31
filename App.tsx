@@ -13,6 +13,7 @@ import type { Session } from '@supabase/supabase-js';
 
 import { supabase, getUser } from './services/supabase';
 import { loadCurrency } from './utils/currency';
+import { loadTheme } from './utils/theme';
 import DashboardScreen from './screens/DashboardScreen';
 import AddTransactionScreen from './screens/AddTransactionScreen';
 import HistoryScreen from './screens/HistoryScreen';
@@ -175,6 +176,7 @@ function AppContent() {
 
   useEffect(() => {
     loadCurrency();
+    loadTheme();
     supabase.auth.getSession()
       .then(({ data: { session } }) => setSession(session))
       .catch(() => setSession(null));

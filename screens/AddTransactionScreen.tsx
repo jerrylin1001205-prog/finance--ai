@@ -5,24 +5,19 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { addExpense, getMonthlyIncome, getMonthExpenses } from '../services/supabase';
 import { fmt, getCurrency } from '../utils/currency';
-
-const PRIMARY = '#6366F1';
+import { useTheme, Theme } from '../utils/theme';
 
 const CATEGORIES = [
-  { name: 'Food',          icon: '🍔', color: '#F59E0B' },
-  { name: 'Transport',     icon: '🚗', color: '#3B82F6' },
-  { name: 'Bills',         icon: '💡', color: '#8B5CF6' },
-  { name: 'Shopping',      icon: '🛍️', color: '#EC4899' },
-  { name: 'Health',        icon: '💊', color: '#10B981' },
-  { name: 'Entertainment', icon: '🎬', color: '#06B6D4' },
-  { name: 'Rent',          icon: '🏠', color: '#F97316' },
-  { name: 'Other',         icon: '📦', color: '#6B7280' },
+  { name: 'Food', icon: '🍔' }, { name: 'Transport', icon: '🚗' },
+  { name: 'Bills', icon: '💡' }, { name: 'Shopping', icon: '🛍️' },
+  { name: 'Health', icon: '💊' }, { name: 'Entertainment', icon: '🎬' },
+  { name: 'Rent', icon: '🏠' }, { name: 'Other', icon: '📦' },
 ];
 
 export default function AddTransactionScreen() {
+  const t = useTheme();
   const [itemName, setItemName] = useState('');
   const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
@@ -64,57 +59,54 @@ export default function AddTransactionScreen() {
     }
   };
 
-  const selectedCat = CATEGORIES.find(c => c.name === category);
+  const s = makeStyles(t);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={styles.root} contentContainerStyle={{ paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+      <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
 
         {/* Header */}
-        <LinearGradient colors={['#1E1B4B', '#312E81']} style={styles.header}>
-          <Text style={styles.headerTitle}>Add Expense</Text>
-          <Text style={styles.headerSub}>
-            {income > 0
-              ? `${fmt(income - totalSpent)} remaining this month`
-              : 'Set your income first to track budget'}
+        <View style={s.header}>
+          <Text style={s.headerTitle}>Add Expense</Text>
+          <Text style={s.headerSub}>
+            {income > 0 ? `${fmt(income - totalSpent)} remaining this month` : 'Set your income to track budget'}
           </Text>
-        </LinearGradient>
+        </View>
 
-        <View style={styles.body}>
-          {/* Success */}
+        <View style={s.body}>
           {saved && (
-            <View style={styles.successBanner}>
-              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-              <Text style={styles.successText}>Expense saved successfully!</Text>
+            <View style={s.successBanner}>
+              <Ionicons name="checkmark-circle" size={18} color={t.income} />
+              <Text style={[s.bannerText, { color: t.income }]}>Expense saved!</Text>
             </View>
           )}
 
-          {/* Item name */}
-          <View style={styles.card}>
-            <Text style={styles.label}>WHAT DID YOU SPEND ON?</Text>
+          {/* Name */}
+          <View style={s.card}>
+            <Text style={s.label}>WHAT DID YOU SPEND ON?</Text>
             <TextInput
-              style={styles.textInput}
+              style={s.textInput}
               placeholder="e.g. Lunch, Uber, Netflix..."
+              placeholderTextColor={t.textMuted}
               value={itemName}
               onChangeText={setItemName}
-              placeholderTextColor="#94A3B8"
             />
           </View>
 
           {/* Category */}
-          <View style={styles.card}>
-            <Text style={styles.label}>CATEGORY</Text>
-            <View style={styles.catGrid}>
+          <View style={s.card}>
+            <Text style={s.label}>CATEGORY</Text>
+            <View style={s.catGrid}>
               {CATEGORIES.map(cat => {
                 const active = category === cat.name;
                 return (
                   <TouchableOpacity
                     key={cat.name}
-                    style={[styles.catChip, active && { backgroundColor: cat.color, borderColor: cat.color }]}
+                    style={[s.catChip, active && { backgroundColor: t.primary, borderColor: t.primary }]}
                     onPress={() => setCategory(cat.name)}
                   >
-                    <Text style={styles.catEmoji}>{cat.icon}</Text>
-                    <Text style={[styles.catText, active && { color: '#fff' }]}>{cat.name}</Text>
+                    <Text style={s.catEmoji}>{cat.icon}</Text>
+                    <Text style={[s.catText, active && { color: '#fff' }]}>{cat.name}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -122,67 +114,54 @@ export default function AddTransactionScreen() {
           </View>
 
           {/* Amount */}
-          <View style={styles.card}>
-            <Text style={styles.label}>AMOUNT ({getCurrency().code})</Text>
-            <View style={styles.amountRow}>
-              <Text style={styles.currencySymbol}>{getCurrency().symbol}</Text>
+          <View style={s.card}>
+            <Text style={s.label}>AMOUNT ({getCurrency().code})</Text>
+            <View style={s.amountRow}>
+              <Text style={s.currencySymbol}>{getCurrency().symbol}</Text>
               <TextInput
-                style={styles.amountInput}
+                style={s.amountInput}
                 placeholder="0.00"
                 keyboardType="decimal-pad"
                 value={amount}
                 onChangeText={setAmount}
-                placeholderTextColor="#CBD5E1"
+                placeholderTextColor={t.textMuted}
               />
             </View>
             {income > 0 && parsedAmount > 0 && (
-              <Text style={styles.amountHint}>
-                Remaining after: <Text style={{ fontWeight: '800', color: remainingAfter < 0 ? '#EF4444' : '#10B981' }}>{fmt(Math.abs(remainingAfter))}{remainingAfter < 0 ? ' over budget' : ' left'}</Text>
+              <Text style={[s.amountHint, { color: remainingAfter < 0 ? t.expense : t.textMuted }]}>
+                Remaining after: {fmt(Math.abs(remainingAfter))}{remainingAfter < 0 ? ' over budget' : ' left'}
               </Text>
             )}
           </View>
 
-          {/* Warning */}
           {isOverBudget && (
-            <View style={[styles.alertCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-              <Ionicons name="warning" size={18} color="#EF4444" />
-              <Text style={[styles.alertText, { color: '#EF4444' }]}>
-                This puts you {fmt(Math.abs(remainingAfter))} over your monthly budget!
-              </Text>
+            <View style={[s.alertCard, { borderColor: t.mode === 'dark' ? '#7f1d1d' : '#FECACA', backgroundColor: t.mode === 'dark' ? '#450a0a' : '#FEF2F2' }]}>
+              <Ionicons name="warning" size={16} color={t.expense} />
+              <Text style={[s.alertText, { color: t.expense }]}>This puts you {fmt(Math.abs(remainingAfter))} over budget!</Text>
             </View>
           )}
           {isNearLimit && (
-            <View style={[styles.alertCard, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-              <Ionicons name="alert-circle" size={18} color="#D97706" />
-              <Text style={[styles.alertText, { color: '#D97706' }]}>
-                You'll only have {fmt(remainingAfter)} left this month.
-              </Text>
+            <View style={[s.alertCard, { borderColor: '#FDE68A', backgroundColor: t.mode === 'dark' ? '#451a03' : '#FFFBEB' }]}>
+              <Ionicons name="alert-circle" size={16} color="#D97706" />
+              <Text style={[s.alertText, { color: '#D97706' }]}>Only {fmt(remainingAfter)} left this month.</Text>
             </View>
           )}
-
-          {/* Error */}
           {error !== '' && (
-            <View style={[styles.alertCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-              <Ionicons name="close-circle" size={18} color="#EF4444" />
-              <Text style={[styles.alertText, { color: '#EF4444' }]}>{error}</Text>
+            <View style={[s.alertCard, { borderColor: t.mode === 'dark' ? '#7f1d1d' : '#FECACA', backgroundColor: t.mode === 'dark' ? '#450a0a' : '#FEF2F2' }]}>
+              <Ionicons name="close-circle" size={16} color={t.expense} />
+              <Text style={[s.alertText, { color: t.expense }]}>{error}</Text>
             </View>
           )}
 
-          {/* Save button */}
-          <TouchableOpacity onPress={handleSave} disabled={saving} style={{ marginTop: 8 }}>
-            <LinearGradient
-              colors={saving ? ['#94A3B8', '#94A3B8'] : [PRIMARY, '#4F46E5']}
-              style={styles.saveBtn}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            >
-              {saving
-                ? <ActivityIndicator color="#fff" />
-                : <>
-                    <Ionicons name="add-circle" size={20} color="#fff" />
-                    <Text style={styles.saveBtnText}>Save Expense</Text>
-                  </>
-              }
-            </LinearGradient>
+          <TouchableOpacity
+            style={[s.saveBtn, { backgroundColor: saving ? t.textMuted : t.primary }]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving
+              ? <ActivityIndicator color="#fff" />
+              : <><Ionicons name="add-circle" size={18} color="#fff" /><Text style={s.saveBtnText}>Save Expense</Text></>
+            }
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -190,48 +169,53 @@ export default function AddTransactionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F0F4F8' },
-  header: { paddingHorizontal: 24, paddingTop: 56, paddingBottom: 32 },
-  headerTitle: { fontSize: 26, fontWeight: '900', color: '#fff', marginBottom: 6 },
-  headerSub: { fontSize: 14, color: 'rgba(255,255,255,0.55)', fontWeight: '500' },
-  body: { padding: 16, marginTop: -16 },
+function makeStyles(t: Theme) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: t.bg },
+    header: { backgroundColor: t.headerBg, paddingHorizontal: 24, paddingTop: 52, paddingBottom: 28 },
+    headerTitle: { fontSize: 24, fontWeight: '800', color: t.headerText, marginBottom: 4 },
+    headerSub: { fontSize: 13, color: t.headerSub },
+    body: { padding: 16 },
 
-  successBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#F0FDF4', borderRadius: 14, padding: 16, marginBottom: 14,
-    borderWidth: 1, borderColor: '#BBF7D0',
-  },
-  successText: { fontSize: 14, fontWeight: '700', color: '#10B981' },
+    successBanner: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: t.mode === 'dark' ? '#052e16' : '#F0FDF4',
+      borderRadius: 12, padding: 14, marginBottom: 12,
+      borderWidth: 1, borderColor: t.mode === 'dark' ? '#166534' : '#BBF7D0',
+    },
+    bannerText: { fontSize: 14, fontWeight: '700' },
 
-  card: { backgroundColor: '#fff', borderRadius: 20, padding: 20, marginBottom: 14, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 },
-  label: { fontSize: 11, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.2, marginBottom: 14 },
-  textInput: { fontSize: 17, color: '#0F172A', fontWeight: '600', borderBottomWidth: 2, borderBottomColor: '#E2E8F0', paddingBottom: 10 },
+    card: {
+      backgroundColor: t.card, borderRadius: 16, padding: 18, marginBottom: 12,
+      borderWidth: 1, borderColor: t.border,
+    },
+    label: { fontSize: 11, fontWeight: '800', color: t.textMuted, letterSpacing: 1.2, marginBottom: 14 },
+    textInput: { fontSize: 16, color: t.text, fontWeight: '600', borderBottomWidth: 1, borderBottomColor: t.inputBorder, paddingBottom: 8 },
 
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  catChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12,
-    backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: '#E2E8F0',
-  },
-  catEmoji: { fontSize: 15 },
-  catText: { fontSize: 13, fontWeight: '700', color: '#475569' },
+    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    catChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+      backgroundColor: t.bg2, borderWidth: 1.5, borderColor: t.border,
+    },
+    catEmoji: { fontSize: 14 },
+    catText: { fontSize: 13, fontWeight: '600', color: t.textSub },
 
-  amountRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  currencySymbol: { fontSize: 32, fontWeight: '900', color: '#CBD5E1' },
-  amountInput: { flex: 1, fontSize: 42, fontWeight: '900', color: '#0F172A', paddingBottom: 4 },
-  amountHint: { fontSize: 13, color: '#94A3B8', marginTop: 10, fontWeight: '500' },
+    amountRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    currencySymbol: { fontSize: 28, fontWeight: '900', color: t.textMuted },
+    amountInput: { flex: 1, fontSize: 40, fontWeight: '900', color: t.text, paddingBottom: 4 },
+    amountHint: { fontSize: 12, marginTop: 8, fontWeight: '500' },
 
-  alertCard: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1,
-  },
-  alertText: { flex: 1, fontSize: 14, fontWeight: '600', lineHeight: 20 },
+    alertCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1,
+    },
+    alertText: { flex: 1, fontSize: 13, fontWeight: '600' },
 
-  saveBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    borderRadius: 16, paddingVertical: 18,
-    shadowColor: PRIMARY, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
-  },
-  saveBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-});
+    saveBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      borderRadius: 14, paddingVertical: 17, marginTop: 4,
+    },
+    saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  });
+}

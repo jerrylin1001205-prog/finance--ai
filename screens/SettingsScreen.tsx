@@ -1,10 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Modal, TextInput, ActivityIndicator, Platform, Alert,
+  Modal, TextInput, ActivityIndicator, Platform, Alert, Switch,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import {
   getUser, signOut,
@@ -12,9 +11,7 @@ import {
   CategoryLimit, getMonthExpenses, Expense,
 } from '../services/supabase';
 import { getCurrency, CURRENCIES, saveCurrency, Currency, fmt } from '../utils/currency';
-
-const PRIMARY = '#6366F1';
-const BG = '#F0F4F8';
+import { useTheme, setTheme } from '../utils/theme';
 
 const CATEGORIES: { name: string; emoji: string }[] = [
   { name: 'Food', emoji: '🍔' },
@@ -32,11 +29,17 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export default function SettingsScreen() {
+  const t = useTheme();
   const [userEmail, setUserEmail] = useState('');
   const [currency, setCurrency] = useState(getCurrency());
   const [limits, setLimits] = useState<CategoryLimit[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [exportSuccess, setExportSuccess] = useState(false);
+  const isDark = t.mode === 'dark';
+
+  const handleToggleTheme = async () => {
+    await setTheme(isDark ? 'light' : 'dark');
+  };
 
   // Currency picker modal
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
@@ -164,6 +167,25 @@ export default function SettingsScreen() {
               <Text style={styles.userEmailText}>{userEmail}</Text>
               <Text style={styles.userSub}>Signed in</Text>
             </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Dark Mode toggle */}
+          <View style={styles.settingRow}>
+            <View style={styles.settingIconWrap}>
+              <Ionicons name={isDark ? 'moon' : 'sunny-outline'} size={18} color={PRIMARY} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.settingLabel}>Dark Mode</Text>
+              <Text style={styles.settingValue}>{isDark ? 'On' : 'Off'}</Text>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={handleToggleTheme}
+              trackColor={{ false: '#E2E8F0', true: PRIMARY }}
+              thumbColor="#fff"
+            />
           </View>
 
           <View style={styles.divider} />
