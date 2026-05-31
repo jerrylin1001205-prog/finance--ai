@@ -13,6 +13,9 @@ import {
 import { getCurrency, CURRENCIES, saveCurrency, Currency, fmt } from '../utils/currency';
 import { useTheme, setTheme } from '../utils/theme';
 
+const PRIMARY = '#6366F1';
+const BG = '#F0F4F8';
+
 const CATEGORIES: { name: string; emoji: string }[] = [
   { name: 'Food', emoji: '🍔' },
   { name: 'Transport', emoji: '🚗' },
