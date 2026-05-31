@@ -18,6 +18,7 @@ import HistoryScreen from './screens/HistoryScreen';
 import BudgetScreen from './screens/BudgetScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
+import LandingScreen from './screens/LandingScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -163,7 +164,7 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const { width } = useWindowDimensions();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
-  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  const [authView, setAuthView] = useState<'landing' | 'login' | 'register'>('landing');
   const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
 
   useEffect(() => {
@@ -186,6 +187,16 @@ function AppContent() {
   }
 
   if (!session) {
+    if (authView === 'landing') {
+      return (
+        <AuthWrapper>
+          <LandingScreen
+            onGetStarted={() => setAuthView('register')}
+            onSignIn={() => setAuthView('login')}
+          />
+        </AuthWrapper>
+      );
+    }
     return (
       <AuthWrapper>
         {authView === 'register'

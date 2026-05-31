@@ -24,7 +24,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 function fmt(n: number) {
-  return 'NT$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function formatDate(iso: string) {
@@ -210,7 +210,7 @@ export default function HistoryScreen() {
               </View>
             </ScrollView>
 
-            <Text style={styles.fieldLabel}>AMOUNT (NT$)</Text>
+            <Text style={styles.fieldLabel}>AMOUNT (USD)</Text>
             <TextInput
               style={[styles.fieldInput, styles.amountField]}
               value={editAmount}

@@ -34,7 +34,7 @@ function getMotivation(income: number, totalSpent: number) {
 }
 
 function fmt(n: number) {
-  return 'NT$' + Math.round(n).toLocaleString('en-US');
+  return '$' + Math.round(n).toLocaleString('en-US');
 }
 
 function formatDate(iso: string) {

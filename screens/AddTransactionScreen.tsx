@@ -24,7 +24,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 function fmt(n: number) {
-  return 'NT$' + Math.round(n).toLocaleString('en-US');
+  return '$' + Math.round(n).toLocaleString('en-US');
 }
 
 export default function AddTransactionScreen({ navigation }: any) {
@@ -107,7 +107,7 @@ export default function AddTransactionScreen({ navigation }: any) {
 
         {/* Amount */}
         <View style={styles.card}>
-          <Text style={styles.label}>AMOUNT (NT$)</Text>
+          <Text style={styles.label}>AMOUNT (USD)</Text>
           <TextInput
             style={styles.amountInput}
             placeholder="0.00"
@@ -120,9 +120,11 @@ export default function AddTransactionScreen({ navigation }: any) {
 
         {/* 20% warning */}
         {showWarning && (
-          <View style={styles.warnCard}>
-            <Text style={styles.warnText}>
-              ⚠️ You only have {fmt(Math.max(0, remainingAfter))} left this month!
+          <View style={[styles.warnCard, remainingAfter < 0 && { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+            <Text style={[styles.warnText, remainingAfter < 0 && { color: C.expense }]}>
+              {remainingAfter < 0
+                ? `⚠️ This expense puts you ${fmt(Math.abs(remainingAfter))} over budget!`
+                : `⚠️ You'll only have ${fmt(remainingAfter)} left this month!`}
             </Text>
           </View>
         )}

@@ -23,7 +23,7 @@ export default function RegisterScreen({ onGoToLogin }: Props) {
   const [done, setDone] = useState(false);
 
   const handleRegister = async () => {
-    if (!email.trim()) { Alert.alert('Error', 'Please enter your email.'); return; }
+    if (!email.trim() || !email.includes('@')) { Alert.alert('Error', 'Please enter a valid email.'); return; }
     if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters.'); return; }
     if (password !== confirm) { Alert.alert('Error', 'Passwords do not match.'); return; }
     setLoading(true);

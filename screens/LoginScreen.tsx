@@ -21,7 +21,7 @@ export default function LoginScreen({ onGoToRegister }: Props) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim()) { Alert.alert('Error', 'Please enter your email.'); return; }
+    if (!email.trim() || !email.includes('@')) { Alert.alert('Error', 'Please enter a valid email.'); return; }
     if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters.'); return; }
     setLoading(true);
     try {

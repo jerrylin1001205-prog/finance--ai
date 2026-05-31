@@ -20,7 +20,7 @@ function monthLabel() {
 }
 
 function fmt(n: number) {
-  return 'NT$' + Math.round(n).toLocaleString('en-US');
+  return '$' + Math.round(n).toLocaleString('en-US');
 }
 
 export default function BudgetScreen() {
@@ -68,7 +68,7 @@ export default function BudgetScreen() {
         )}
 
         <View style={styles.card}>
-          <Text style={styles.label}>SET YOUR MONTHLY INCOME (NT$)</Text>
+          <Text style={styles.label}>SET YOUR MONTHLY INCOME (USD)</Text>
           <TextInput
             style={styles.amountInput}
             placeholder="0.00"
@@ -103,10 +103,7 @@ export default function BudgetScreen() {
 
         <TouchableOpacity
           style={styles.signOutBtn}
-          onPress={async () => {
-            await signOut();
-            if (Platform.OS === 'web') window.location.reload();
-          }}
+          onPress={signOut}
         >
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>

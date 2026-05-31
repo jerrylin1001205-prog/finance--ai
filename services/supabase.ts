@@ -87,8 +87,8 @@ export const getMonthExpenses = async (): Promise<Expense[]> => {
   const user = await getUser();
   if (!user) return [];
   const now = new Date();
-  // Wide UTC range (+/- 1 day) to handle any timezone offset, then filter locally
-  const start = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
+  // day 1 of this month to day 1 of next month, then filter locally for timezone safety
+  const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 2).toISOString();
   const { data, error } = await supabase
     .from('expenses')
@@ -105,14 +105,23 @@ export const getMonthExpenses = async (): Promise<Expense[]> => {
 };
 
 export const removeExpense = async (id: string): Promise<void> => {
-  const { error } = await supabase.from('expenses').delete().eq('id', id);
+  const user = await getUser();
+  if (!user) throw new Error('Not logged in');
+  const { error } = await supabase
+    .from('expenses')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
   if (error) throw new Error(error.message);
 };
 
 export const updateExpense = async (id: string, item_name: string, category: string, amount: number): Promise<void> => {
+  const user = await getUser();
+  if (!user) throw new Error('Not logged in');
   const { error } = await supabase
     .from('expenses')
     .update({ item_name, category, amount })
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', user.id);
   if (error) throw new Error(error.message);
 };
