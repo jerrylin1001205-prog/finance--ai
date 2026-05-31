@@ -69,8 +69,9 @@ export default function DashboardScreen() {
   const showOverBudget = income > 0 && totalSpent >= income;
   const showNearBudget = income > 0 && !showOverBudget && totalSpent >= income * 0.8;
 
-  // Category warnings (>90% of limit)
+  // Category warnings (>90% of limit) — guard against limit_amount === 0
   const catWarnings = limits.filter(l => {
+    if (l.limit_amount <= 0) return false;
     const spent = byCategory[l.category] ?? 0;
     return spent >= l.limit_amount * 0.9;
   }).map(l => ({

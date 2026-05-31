@@ -17,10 +17,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 export const signUp = async (email: string, password: string) => {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw new Error(error.message);
-  // Try auto sign-in immediately (works when email confirmation is disabled in Supabase)
-  try {
-    await supabase.auth.signInWithPassword({ email, password });
-  } catch (_) {}
+  // Try auto sign-in immediately (works when email confirmation is disabled in Supabase).
+  // We deliberately ignore the result — if it fails (e.g. email not confirmed) the
+  // onAuthStateChange listener in App.tsx will keep the user on the auth screens.
+  await supabase.auth.signInWithPassword({ email, password }).catch(() => {});
   return data.user;
 };
 

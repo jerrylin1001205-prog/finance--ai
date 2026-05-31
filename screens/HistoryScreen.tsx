@@ -51,9 +51,9 @@ export default function HistoryScreen() {
       const a = document.createElement('a');
       a.href = url; a.download = 'finance-ai-expenses.csv'; a.click();
       URL.revokeObjectURL(url);
-      setExportSuccess(true);
-      setTimeout(() => setExportSuccess(false), 3000);
     }
+    setExportSuccess(true);
+    setTimeout(() => setExportSuccess(false), 3000);
   };
 
   const openEdit = (item: Expense) => {

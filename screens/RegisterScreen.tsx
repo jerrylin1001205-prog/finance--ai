@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { signUp } from '../services/supabase';
+import { signUp, supabase } from '../services/supabase';
 
 const PRIMARY = '#6366F1';
 const BG = '#F0F4F8';
@@ -54,10 +54,16 @@ export default function RegisterScreen({ onGoToLogin }: Props) {
     setLoading(true);
     try {
       await signUp(email.trim(), password);
-      // Auto sign-in is attempted in signUp; if it works the auth state change will log user in.
-      // If not, send them to login with a success message.
-      setSuccessMsg('Account created! You can now sign in.');
-      onGoToLogin();
+      // Auto sign-in is attempted inside signUp. If it succeeds, onAuthStateChange
+      // fires in App.tsx and navigates to the main app automatically — we must NOT
+      // also call onGoToLogin() or we'd push the login screen on top of the app.
+      // We only navigate to login if the session did NOT get set (email confirmation required).
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setSuccessMsg('Account created! Please sign in.');
+        onGoToLogin();
+      }
+      // else: auth state change already handled navigation to main app
     } catch (e: any) {
       setError(e.message ?? 'Registration failed. Please try again.');
     } finally {

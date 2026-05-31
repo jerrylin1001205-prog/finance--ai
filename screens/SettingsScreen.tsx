@@ -132,9 +132,12 @@ export default function SettingsScreen() {
       a.download = 'finance-ai-expenses.csv';
       a.click();
       URL.revokeObjectURL(url);
-      setExportSuccess(true);
-      setTimeout(() => setExportSuccess(false), 3000);
+    } else {
+      // Mobile: show the CSV as text in an alert so users can copy it
+      Alert.alert('Export Data', 'Copy the text below to save your expenses:\n\n' + csv);
     }
+    setExportSuccess(true);
+    setTimeout(() => setExportSuccess(false), 3000);
   };
 
   const avatarLetter = userEmail ? userEmail[0].toUpperCase() : 'U';
