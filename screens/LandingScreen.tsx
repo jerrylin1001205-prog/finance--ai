@@ -123,7 +123,7 @@ export default function LandingScreen({ onGetStarted, onSignIn }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F7F8FA' },
+  root: { flex: 1, backgroundColor: '#F7F8FA', width: '100%' as any },
 
   // Nav
   nav: {

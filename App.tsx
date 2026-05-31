@@ -191,12 +191,12 @@ function AppContent() {
   if (!session) {
     if (authView === 'landing') {
       return (
-        <AuthWrapper>
+        <View style={{ flex: 1 }}>
           <LandingScreen
             onGetStarted={() => setAuthView('register')}
             onSignIn={() => setAuthView('login')}
           />
-        </AuthWrapper>
+        </View>
       );
     }
     return (
