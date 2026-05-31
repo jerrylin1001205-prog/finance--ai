@@ -78,12 +78,12 @@ export interface Expense {
   date: string;
 }
 
-export const addExpense = async (item_name: string, category: string, amount: number): Promise<void> => {
+export const addExpense = async (item_name: string, category: string, amount: number, date?: string): Promise<void> => {
   const user = await getUser();
   if (!user) throw new Error('Not logged in');
   const { error } = await supabase
     .from('expenses')
-    .insert({ user_id: user.id, item_name, category, amount, date: new Date().toISOString() });
+    .insert({ user_id: user.id, item_name, category, amount, date: date ?? new Date().toISOString() });
   if (error) throw new Error(error.message);
 };
 

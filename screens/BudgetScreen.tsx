@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getMonthlyIncome, saveMonthlyIncome, signOut, getUser } from '../services/supabase';
+import { getMonthlyIncome, saveMonthlyIncome, getUser } from '../services/supabase';
 import { fmt, getCurrency } from '../utils/currency';
 import { useTheme, Theme } from '../utils/theme';
 
@@ -42,13 +42,6 @@ export default function BudgetScreen() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
-    ]);
   };
 
   const s = makeStyles(t);
@@ -137,10 +130,6 @@ export default function BudgetScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={16} color={t.expense} />
-            <Text style={[s.signOutText, { color: t.expense }]}>Sign Out</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -200,12 +189,5 @@ function makeStyles(t: Theme) {
     },
     infoText: { flex: 1, fontSize: 13, lineHeight: 20 },
 
-    signOutBtn: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-      borderRadius: 12, paddingVertical: 14, borderWidth: 1,
-      borderColor: t.mode === 'dark' ? '#7f1d1d' : '#FECACA',
-      backgroundColor: t.mode === 'dark' ? '#450a0a' : '#FEF2F2',
-    },
-    signOutText: { fontSize: 15, fontWeight: '700' },
   });
 }

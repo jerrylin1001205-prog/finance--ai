@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -16,8 +16,18 @@ const CATEGORIES = [
   { name: 'Rent', icon: '🏠' }, { name: 'Other', icon: '📦' },
 ];
 
+function formatSelectedDate(d: Date): string {
+  return d.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isToday(d: Date): boolean {
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
 export default function AddTransactionScreen() {
   const t = useTheme();
+  const scrollRef = useRef<ScrollView>(null);
   const [itemName, setItemName] = useState('');
   const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
@@ -26,6 +36,9 @@ export default function AddTransactionScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const d = new Date(); d.setHours(12, 0, 0, 0); return d;
+  });
 
   useFocusEffect(useCallback(() => {
     (async () => {
@@ -40,6 +53,14 @@ export default function AddTransactionScreen() {
   const isOverBudget = income > 0 && parsedAmount > 0 && remainingAfter < 0;
   const isNearLimit = income > 0 && parsedAmount > 0 && remainingAfter >= 0 && remainingAfter < income * 0.2;
 
+  const shiftDate = (days: number) => {
+    setSelectedDate(prev => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + days);
+      return d;
+    });
+  };
+
   const handleSave = async () => {
     setError('');
     if (!itemName.trim()) { setError('Please enter an item name.'); return; }
@@ -47,11 +68,14 @@ export default function AddTransactionScreen() {
     if (!parsedAmount || parsedAmount <= 0) { setError('Please enter a valid amount.'); return; }
     setSaving(true);
     try {
-      await addExpense(itemName.trim(), category, parsedAmount);
+      await addExpense(itemName.trim(), category, parsedAmount, selectedDate.toISOString());
       setSaved(true);
       setItemName(''); setCategory(''); setAmount('');
+      const today = new Date(); today.setHours(12, 0, 0, 0);
+      setSelectedDate(today);
       setTotalSpent(prev => prev + parsedAmount);
       setTimeout(() => setSaved(false), 2500);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
     } catch (e: any) {
       setError(e.message ?? 'Failed to save. Please try again.');
     } finally {
@@ -63,7 +87,7 @@ export default function AddTransactionScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} style={s.root} contentContainerStyle={{ paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
 
         {/* Header */}
         <View style={s.header}>
@@ -111,6 +135,25 @@ export default function AddTransactionScreen() {
                 );
               })}
             </View>
+          </View>
+
+          {/* Date picker */}
+          <View style={s.card}>
+            <Text style={s.label}>DATE</Text>
+            <View style={s.dateRow}>
+              <TouchableOpacity style={s.arrowBtn} onPress={() => shiftDate(-1)}>
+                <Ionicons name="chevron-back" size={20} color={t.primary} />
+              </TouchableOpacity>
+              <Text style={s.dateText}>{formatSelectedDate(selectedDate)}</Text>
+              <TouchableOpacity style={s.arrowBtn} onPress={() => shiftDate(1)}>
+                <Ionicons name="chevron-forward" size={20} color={t.primary} />
+              </TouchableOpacity>
+            </View>
+            {!isToday(selectedDate) && (
+              <TouchableOpacity style={s.todayBtn} onPress={() => { const d = new Date(); d.setHours(12,0,0,0); setSelectedDate(d); }}>
+                <Text style={[s.todayBtnText, { color: t.primary }]}>Today</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Amount */}
@@ -200,6 +243,16 @@ function makeStyles(t: Theme) {
     },
     catEmoji: { fontSize: 14 },
     catText: { fontSize: 13, fontWeight: '600', color: t.textSub },
+
+    dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    arrowBtn: {
+      width: 36, height: 36, borderRadius: 10,
+      backgroundColor: t.bg2, borderWidth: 1, borderColor: t.border,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    dateText: { fontSize: 16, fontWeight: '700', color: t.text },
+    todayBtn: { marginTop: 10, alignSelf: 'center' },
+    todayBtnText: { fontSize: 13, fontWeight: '700' },
 
     amountRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     currencySymbol: { fontSize: 28, fontWeight: '900', color: t.textMuted },

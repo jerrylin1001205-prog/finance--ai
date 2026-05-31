@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   getUser, signOut,
   getCategoryLimits, saveCategoryLimit, deleteCategoryLimit,
-  CategoryLimit, getMonthExpenses, Expense,
+  CategoryLimit, getMonthExpenses, Expense, removeExpense,
 } from '../services/supabase';
 import { getCurrency, CURRENCIES, saveCurrency, Currency, fmt } from '../utils/currency';
 import { useTheme, setTheme } from '../utils/theme';
@@ -120,6 +120,28 @@ export default function SettingsScreen() {
   const handleSignOut = async () => {
     setShowSignOut(false);
     await signOut();
+  };
+
+  const handleClearMonthData = () => {
+    if (expenses.length === 0) {
+      Alert.alert('No Data', 'There are no expenses to clear this month.');
+      return;
+    }
+    Alert.alert(
+      'Clear This Month\'s Expenses',
+      `This will permanently delete all ${expenses.length} expense(s) for this month. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All', style: 'destructive', onPress: async () => {
+            for (const exp of expenses) {
+              await removeExpense(exp.id);
+            }
+            await load();
+          },
+        },
+      ]
+    );
   };
 
   const handleExportCSV = () => {
@@ -268,6 +290,18 @@ export default function SettingsScreen() {
               <Text style={styles.settingValue}>Download this month's expenses</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity style={styles.settingRow} onPress={handleClearMonthData}>
+            <View style={[styles.settingIconWrap, { backgroundColor: '#FEF2F2' }]}>
+              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.settingLabel, { color: '#EF4444' }]}>Clear This Month's Expenses</Text>
+              <Text style={styles.settingValue}>Permanently deletes all expenses for this month</Text>
+            </View>
           </TouchableOpacity>
         </View>
 

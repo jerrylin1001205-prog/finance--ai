@@ -10,6 +10,7 @@ import { fmt, getCurrency } from '../utils/currency';
 import { useTheme, Theme } from '../utils/theme';
 
 const CATEGORIES = ['Food', 'Transport', 'Bills', 'Shopping', 'Health', 'Entertainment', 'Rent', 'Other'];
+const FILTER_CATEGORIES = ['All', ...CATEGORIES];
 const CATEGORY_ICONS: Record<string, string> = {
   Food: '🍔', Transport: '🚗', Bills: '💡', Shopping: '🛍️',
   Health: '💊', Entertainment: '🎬', Rent: '🏠', Other: '📦',
@@ -31,6 +32,8 @@ export default function HistoryScreen() {
   const [editAmount, setEditAmount] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
+  const [search, setSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState('All');
 
   const load = async () => { setExpenses(await getMonthExpenses()); };
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -80,8 +83,16 @@ export default function HistoryScreen() {
     finally { setDeleting(false); }
   };
 
+  const filteredExpenses = expenses.filter(e => {
+    const matchesSearch = search.trim() === '' || e.item_name.toLowerCase().includes(search.trim().toLowerCase());
+    const matchesCategory = filterCategory === 'All' || e.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
+
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
   const s = makeStyles(t);
+
+  const hasActiveFilter = search.trim() !== '' || filterCategory !== 'All';
 
   const renderItem = ({ item }: { item: Expense }) => (
     <View style={s.txCard}>
@@ -133,6 +144,40 @@ export default function HistoryScreen() {
           </View>
         )}
 
+        {/* Search bar */}
+        <View style={s.searchRow}>
+          <Ionicons name="search" size={16} color={t.textMuted} style={{ marginRight: 8 }} />
+          <TextInput
+            style={s.searchInput}
+            placeholder="Search expenses..."
+            placeholderTextColor={t.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={16} color={t.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Category filter chips */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }} contentContainerStyle={{ paddingHorizontal: 2, gap: 6, flexDirection: 'row' }}>
+          {FILTER_CATEGORIES.map(cat => {
+            const active = filterCategory === cat;
+            return (
+              <TouchableOpacity
+                key={cat}
+                style={[s.filterChip, active && { backgroundColor: t.primary, borderColor: t.primary }]}
+                onPress={() => setFilterCategory(cat)}
+              >
+                {cat !== 'All' && <Text style={{ fontSize: 11 }}>{CATEGORY_ICONS[cat]}</Text>}
+                <Text style={[s.filterChipText, active && { color: '#fff' }]}>{cat}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
         {expenses.length > 0 && (
           <View style={s.summaryCard}>
             <View style={s.summaryItem}>
@@ -147,15 +192,28 @@ export default function HistoryScreen() {
           </View>
         )}
 
-        {expenses.length === 0 ? (
+        {/* Count row */}
+        {expenses.length > 0 && (
+          <Text style={s.countText}>
+            Showing {filteredExpenses.length} of {expenses.length} expenses
+          </Text>
+        )}
+
+        {expenses.length === 0 && !hasActiveFilter ? (
           <View style={s.emptyCard}>
             <Text style={{ fontSize: 44, marginBottom: 14 }}>🧾</Text>
             <Text style={s.emptyTitle}>No expenses yet</Text>
             <Text style={s.emptySub}>Expenses you log this month will appear here.</Text>
           </View>
+        ) : expenses.length > 0 && filteredExpenses.length === 0 ? (
+          <View style={s.emptyCard}>
+            <Text style={{ fontSize: 44, marginBottom: 14 }}>🔍</Text>
+            <Text style={s.emptyTitle}>No results{search.trim() ? ` for "${search.trim()}"` : ''}</Text>
+            <Text style={s.emptySub}>Try a different search term or category filter.</Text>
+          </View>
         ) : (
           <FlatList
-            data={expenses}
+            data={filteredExpenses}
             keyExtractor={item => item.id}
             renderItem={renderItem}
             showsVerticalScrollIndicator={false}
@@ -268,8 +326,24 @@ function makeStyles(t: Theme) {
     },
     exportBannerText: { fontSize: 13, fontWeight: '700' },
 
+    searchRow: {
+      flexDirection: 'row', alignItems: 'center',
+      backgroundColor: t.card, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+      borderWidth: 1, borderColor: t.border, marginBottom: 10,
+    },
+    searchInput: { flex: 1, fontSize: 14, color: t.text, fontWeight: '500' },
+
+    filterChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 4,
+      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+      backgroundColor: t.bg2, borderWidth: 1.5, borderColor: t.border,
+    },
+    filterChipText: { fontSize: 12, fontWeight: '700', color: t.textSub },
+
+    countText: { fontSize: 12, color: t.textMuted, fontWeight: '600', marginBottom: 8, marginLeft: 2 },
+
     summaryCard: {
-      flexDirection: 'row', backgroundColor: t.card, borderRadius: 14, padding: 16, marginBottom: 12,
+      flexDirection: 'row', backgroundColor: t.card, borderRadius: 14, padding: 16, marginBottom: 8,
       borderWidth: 1, borderColor: t.border,
     },
     summaryItem: { flex: 1, alignItems: 'center' },

@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Animated, TouchableOpacity } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   getMonthlyIncome, getMonthExpenses, Expense,
@@ -25,18 +25,34 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('default', { month: 'short', day: 'numeric' });
 }
 
+function SkeletonCard({ style }: { style?: object }) {
+  const opacity = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return <Animated.View style={[{ height: 110, borderRadius: 18, backgroundColor: '#94A3B8' }, style, { opacity }]} />;
+}
+
 export default function DashboardScreen() {
   const t = useTheme();
+  const navigation = useNavigation<any>();
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [limits, setLimits] = useState<CategoryLimit[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
     const [inc, exps, lims] = await Promise.all([
       getMonthlyIncome(), getMonthExpenses(), getCategoryLimits(),
     ]);
     setIncome(inc); setExpenses(exps); setLimits(lims);
+    setLoading(false);
   };
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
@@ -45,6 +61,11 @@ export default function DashboardScreen() {
   const remaining = income - totalSpent;
   const pct = income > 0 ? Math.min(totalSpent / income, 1) : 0;
   const pctNum = Math.round(pct * 100);
+
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysLeftInMonth = daysInMonth - now.getDate() + 1;
+  const dailyBudgetLeft = daysLeftInMonth > 0 ? remaining / daysLeftInMonth : 0;
 
   const byCategory: Record<string, number> = {};
   expenses.forEach(e => { byCategory[e.category] = (byCategory[e.category] || 0) + e.amount; });
@@ -64,6 +85,23 @@ export default function DashboardScreen() {
 
   const s = makeStyles(t);
 
+  if (loading) {
+    return (
+      <View style={s.root}>
+        <View style={s.header}>
+          <Text style={s.greeting}>{getGreeting()} 👋</Text>
+          <Text style={s.headerMonth}>{now.toLocaleString('default', { month: 'long', year: 'numeric' })}</Text>
+          <Text style={s.headerSub}>Loading your data...</Text>
+        </View>
+        <View style={s.body}>
+          <SkeletonCard style={{ marginBottom: 12 }} />
+          <SkeletonCard style={{ marginBottom: 12, height: 70 }} />
+          <SkeletonCard style={{ marginBottom: 12, height: 130 }} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       style={s.root}
@@ -74,7 +112,7 @@ export default function DashboardScreen() {
       <View style={s.header}>
         <Text style={s.greeting}>{getGreeting()} 👋</Text>
         <Text style={s.headerMonth}>
-          {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+          {now.toLocaleString('default', { month: 'long', year: 'numeric' })}
         </Text>
         <Text style={s.headerSub}>Here's your financial overview</Text>
       </View>
@@ -99,6 +137,30 @@ export default function DashboardScreen() {
             </View>
           </View>
         </View>
+
+        {/* Daily budget card */}
+        {income > 0 && (
+          <View style={s.dailyCard}>
+            <View style={s.dailyHalf}>
+              <Text style={[s.dailyValue, { color: t.text }]}>{daysLeftInMonth}</Text>
+              <Text style={s.dailyLabel}>days left in month</Text>
+            </View>
+            <View style={s.dailyDivider} />
+            <View style={s.dailyHalf}>
+              {dailyBudgetLeft > 0 ? (
+                <>
+                  <Text style={[s.dailyValue, { color: t.income }]}>~{fmt(dailyBudgetLeft)}/day</Text>
+                  <Text style={s.dailyLabel}>safe to spend</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[s.dailyValue, { color: t.expense, fontSize: 14 }]}>No daily budget</Text>
+                  <Text style={s.dailyLabel}>over limit</Text>
+                </>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Alert banners */}
         {showOverBudget && (
@@ -221,12 +283,55 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Empty state */}
+        {/* Onboarding empty state */}
         {income === 0 && expenses.length === 0 && (
-          <View style={s.emptyCard}>
-            <Text style={s.emptyIcon}>💡</Text>
-            <Text style={s.emptyTitle}>Let's get started</Text>
-            <Text style={s.emptySub}>Set your monthly income in the Income tab, then log your first expense.</Text>
+          <View style={s.onboardCard}>
+            <Text style={s.onboardTitle}>Welcome! Let's get started 🚀</Text>
+            <Text style={s.onboardSub}>Complete these steps to set up your finances</Text>
+
+            {/* Step 1 */}
+            <View style={s.stepRow}>
+              <View style={[s.stepBadge, { backgroundColor: '#D1FAE5' }]}>
+                <Text style={[s.stepNum, { color: '#059669' }]}>✓</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.stepTitle, { color: t.text }]}>Created your account</Text>
+                <Text style={s.stepDesc}>You're signed in and ready to go</Text>
+              </View>
+              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+            </View>
+
+            <View style={s.stepDivider} />
+
+            {/* Step 2 */}
+            <View style={s.stepRow}>
+              <View style={[s.stepBadge, { backgroundColor: t.bg2 }]}>
+                <Text style={[s.stepNum, { color: t.textMuted }]}>2</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.stepTitle, { color: t.text }]}>Set your monthly income</Text>
+                <Text style={s.stepDesc}>Tell us how much you earn this month</Text>
+              </View>
+              <TouchableOpacity style={[s.stepBtn, { borderColor: t.primary }]} onPress={() => navigation.navigate('Income')}>
+                <Text style={[s.stepBtnText, { color: t.primary }]}>Go to Income</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.stepDivider} />
+
+            {/* Step 3 */}
+            <View style={s.stepRow}>
+              <View style={[s.stepBadge, { backgroundColor: t.bg2 }]}>
+                <Text style={[s.stepNum, { color: t.textMuted }]}>3</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.stepTitle, { color: t.text }]}>Log your first expense</Text>
+                <Text style={s.stepDesc}>Track where your money goes</Text>
+              </View>
+              <TouchableOpacity style={[s.stepBtn, { borderColor: t.primary }]} onPress={() => navigation.navigate('Add')}>
+                <Text style={[s.stepBtnText, { color: t.primary }]}>Go to Add</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
@@ -259,6 +364,16 @@ function makeStyles(t: Theme) {
     balanceHalfDivider: { width: 1, backgroundColor: t.border },
     balanceHalfLabel: { fontSize: 11, color: t.textMuted, fontWeight: '600', marginBottom: 4 },
     balanceHalfValue: { fontSize: 17, fontWeight: '800' },
+
+    dailyCard: {
+      backgroundColor: t.card, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18,
+      marginBottom: 12, borderWidth: 1, borderColor: t.border,
+      flexDirection: 'row', alignItems: 'center',
+    },
+    dailyHalf: { flex: 1, alignItems: 'center' },
+    dailyDivider: { width: 1, backgroundColor: t.border, height: 36, marginHorizontal: 8 },
+    dailyValue: { fontSize: 18, fontWeight: '900', marginBottom: 3 },
+    dailyLabel: { fontSize: 11, color: t.textMuted, fontWeight: '600' },
 
     alertBanner: {
       flexDirection: 'row', alignItems: 'flex-start', gap: 10,
@@ -305,9 +420,25 @@ function makeStyles(t: Theme) {
     txMeta: { fontSize: 12, color: t.textMuted, marginTop: 1 },
     txAmt: { fontSize: 14, fontWeight: '800' },
 
-    emptyCard: { backgroundColor: t.card, borderRadius: 18, padding: 36, alignItems: 'center', borderWidth: 1, borderColor: t.border },
-    emptyIcon: { fontSize: 44, marginBottom: 14 },
-    emptyTitle: { fontSize: 17, fontWeight: '800', color: t.text, marginBottom: 8 },
-    emptySub: { fontSize: 14, color: t.textMuted, textAlign: 'center', lineHeight: 22 },
+    onboardCard: {
+      backgroundColor: t.card, borderRadius: 18, padding: 20,
+      borderWidth: 1, borderColor: t.border,
+    },
+    onboardTitle: { fontSize: 17, fontWeight: '800', color: t.text, marginBottom: 4 },
+    onboardSub: { fontSize: 13, color: t.textMuted, marginBottom: 20 },
+    stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    stepBadge: {
+      width: 32, height: 32, borderRadius: 16,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    stepNum: { fontSize: 13, fontWeight: '900' },
+    stepTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+    stepDesc: { fontSize: 12, color: t.textMuted },
+    stepDivider: { height: 1, backgroundColor: t.border, marginVertical: 14 },
+    stepBtn: {
+      borderWidth: 1.5, borderRadius: 8,
+      paddingHorizontal: 10, paddingVertical: 6,
+    },
+    stepBtnText: { fontSize: 12, fontWeight: '700' },
   });
 }
