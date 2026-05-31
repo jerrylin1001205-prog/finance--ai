@@ -206,14 +206,10 @@ function AppContent() {
         </View>
       );
     }
-    return (
-      <AuthWrapper>
-        {authView === 'register'
-          ? <RegisterScreen onGoToLogin={() => setAuthView('login')} />
-          : <LoginScreen onGoToRegister={() => setAuthView('register')} />
-        }
-      </AuthWrapper>
-    );
+    // Login & Register manage their own full-screen layout — no AuthWrapper needed
+    return authView === 'register'
+      ? <RegisterScreen onGoToLogin={() => setAuthView('login')} />
+      : <LoginScreen onGoToRegister={() => setAuthView('register')} />;
   }
 
   if (isDesktop) return <DesktopLayout />;
